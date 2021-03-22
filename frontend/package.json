@@ -1,0 +1,44 @@
+{
+  "name": "gisspot",
+  "version": "1.0.0",
+  "description": "UI for satellite photos and usability view on the desktop in web",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"`Hello, node!\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Masyru/gisspot.git"
+  },
+  "keywords": [
+    "gisspot",
+    "satellites"
+  ],
+  "author": "MI",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Masyru/gisspot/issues"
+  },
+  "homepage": "https://github.com/Masyru/gisspot#readme",
+  "dependencies": {
+    "babel-loader": "^8.1.0",
+    "babel-polyfill": "^6.26.0",
+    "babel-preset-es2015": "^6.24.1",
+    "babel-preset-react": "^6.24.1",
+    "babel-preset-stage-0": "^6.24.1",
+    "bootstrap-select": "^1.13.18",
+    "css-loader": "^3.5.3",
+    "extract-text-webpack-plugin": "^3.0.2",
+    "file-loader": "^5.0.2",
+    "html-webpack-plugin": "^5.3.1",
+    "mini-css-extract-plugin": "^0.11.1",
+    "react": "^17.0.1",
+    "react-dom": "^17.0.1",
+    "reactdom": "^2.0.0",
+    "sass-loader": "^10.0.2",
+    "style-loader": "^1.2.1",
+    "webpack": "^4.43.0",
+    "webpack-cli": "^3.3.11",
+    "webpack-dev-server": "^3.11.0"
+  }
+}

@@ -1,3 +1,10 @@
+# Defaults
+*/node_modules/
+*/.idea
+*/__pycache__/
+*build/
+*package-lock.json
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
