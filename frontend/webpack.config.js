@@ -6,7 +6,7 @@ module.exports = {
         index: "./index.js",
     },
     output:{
-        filename:"../static/js/[name].js",
+        filename:"./bundle/js/[name].js",
         path: path.resolve()
     },
     module: {
@@ -31,7 +31,4 @@ module.exports = {
             }
         ]
     },
-    plugins: [
-        new HtmlWebpackPlugin(),
-    ]
 };

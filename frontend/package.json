@@ -4,7 +4,10 @@
   "description": "UI for satellite photos and usability view on the desktop in web",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"`Hello, node!\""
+    "test": "echo \"`Hello, node!\"",
+    "build": "webpack --mode production --config webpack.config.js",
+    "watch": "webpack --mode development --watch --progress",
+    "server": "webpack-dev-server --mode development --open --hot"
   },
   "repository": {
     "type": "git",
@@ -21,12 +24,16 @@
   },
   "homepage": "https://github.com/Masyru/gisspot#readme",
   "dependencies": {
+    "@babel/core": "^7.13.10",
+    "@babel/preset-env": "^7.13.10",
+    "@babel/preset-react": "^7.12.13",
     "babel-loader": "^8.1.0",
     "babel-polyfill": "^6.26.0",
     "babel-preset-es2015": "^6.24.1",
     "babel-preset-react": "^6.24.1",
     "babel-preset-stage-0": "^6.24.1",
     "bootstrap-select": "^1.13.18",
+    "cesium": "^1.79.1",
     "css-loader": "^3.5.3",
     "extract-text-webpack-plugin": "^3.0.2",
     "file-loader": "^5.0.2",
