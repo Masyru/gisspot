@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 
 b0_common_dt = np.dtype([
     ("formatType", np.uint8),
@@ -120,46 +121,44 @@ def convert_image(b0, data):
     data[mask] = np.nan
     return data
 
-def luminace(x, y, k1=0.01, L=(2**16 - 1)):
-    x = x.reshape(-1)
-    y = y.reshape(-1)
-    x = x[~np.isnan(x)]
-    y = y[~np.isnan(y)]
-    nu_x = x.mean()
-    nu_y = y.mean()
-    l = (2*nu_x*nu_y + (k1*L)**2)/(nu_x**2 + nu_y**2 + (k1*L)**2)
-    
-    return l
-
 def normalize(data):
     data = data/data.max()
     data[data < 0] = np.nan
     return data
-
 
 def rmse(data1, data2, coefs):
     data1 = data1[~np.isnan(data1)].reshape(-1)
     data2 = data2[~np.isnan(data2)].reshape(-1)
     return np.sqrt(((data1-data2)**2).sum()/data1.shape[0])
 
-def ssim(data1, data2, coefs):
-    x = data1[~np.isnan(data1)].reshape(-1)
-    y = data2[~np.isnan(data2)].reshape(-1)
+def ssim(x, y, coefs):
+    if coefs is None:
+        alpha = 1
+        beta = 1
+        gamma = 1
+    else:
+        alpha = coefs['alpha']
+        beta = coefs['beta']
+        gamma = coefs['gamma']
     
-    nu_x = x.mean()
-    nu_y = y.mean()
-    var_x = np.var(x)
-    var_y = np.var(y)
-    covar = ((x-nu_x)*(y-nu_y)).mean()
-    c1 = (coefs['k1']*coefs['L'])**2
-    c2 = (coefs['k2']*coefs['L'])**2
-    c3 = c2/2
+    x = x.reshape(-1)
+    y = y.reshape(-1)
+    x = x[~np.isnan(x)]
+    y = y[~np.isnan(x)]
     
-    l = (2*nu_x*nu_y+c1)/(nu_x**2 + nu_y**2 + c1)
-    c = (2*var_x*var_y + c2)/(var_x**2 + var_y**2 + c1)
-    s = (covar + c3)/(var_x*var_y + c3)
+    x_mean = np.mean(x)
+    y_mean = np.mean(y)
+    x_diff = x - x_mean
+    y_diff = y - y_mean
+    x_std = np.std(x)
+    y_std = np.std(y)
+
+    C = np.sum(x_diff*y_diff) / np.sqrt(np.sum(np.power(x_diff,2))*np.sum(np.power(y_diff,2)))
+    E = 1 - np.sum(np.abs(x_diff - y_diff)) / (np.sum(np.abs(x_diff)) + np.sum(np.abs(y_diff)))
+    S = 2*x_std*y_std/ (np.power(x_std,2) + np.power(y_std,2))
     
-    return l*c*s
+    ssim = C**alpha * E**beta * S**gamma
+    return ssim
     
 
 def mode_comp(a, b, mode):
@@ -176,39 +175,100 @@ def find_best_match(img1,  # image where we gotta find our point
     
     assert mode in ['max', 'min']
     
-    halfv0 = vicinity_size[0]//2 if vicinity_size[0]%2 == 0 else (vicinity_size[0]+1)//2
-    halfv1 = vicinity_size[1]//2 if vicinity_size[1]%2 == 0 else (vicinity_size[1]+1)//2
+    ref_window_lcx = point_coor[1]-window_size[1]//2
+    ref_window_rcx = ref_window_lcx+window_size[1]
+    ref_window_ucy = point_coor[0]-window_size[0]//2
+    ref_window_dcy = ref_window_ucy+window_size[0]
     
-    halfw0 = window_size[0]//2 if window_size[0]%2 == 0 else (window_size[0]+1)//2
-    halfw1 = window_size[1]//2 if window_size[1]%2 == 0 else (window_size[1]+1)//2
+    vicinity_lcx = point_coor[1]-vicinity_size[1]//2
+    vicinity_rcx = vicinity_lcx+vicinity_size[1]
+    vicinity_ucy = point_coor[0]-vicinity_size[0]//2
+    vicinity_dcy = vicinity_ucy+vicinity_size[0]
     
-    ref_image = img1[point_coor[0]-halfw0:point_coor[0]+halfw0, point_coor[1]-halfw1:point_coor[1]+halfw1]
+    ref_image = img1[ref_window_ucy:ref_window_dcy, ref_window_lcx:ref_window_rcx]
+    
+    best_score = -float('infinity') if mode == 'max' else float('infinity')
+    best_idx = [None, None]
+    for y in range(vicinity_ucy, vicinity_dcy-window_size[0]):
+        for x in range(vicinity_lcx, vicinity_rcx-window_size[1]):
+            img2_crop = img2[y:y+window_size[0], x:x+window_size[1]]
+            score = metric_fn(ref_image, img2_crop, coefs)
+            tmp = mode_comp(score, best_score, mode)
+            if tmp == score:
+                best_score = score
+                best_idx[0] = (2*y + window_size[0])//2
+                best_idx[1] = (2*x + window_size[1])//2
+    
+    return best_idx, best_score
+
+
+def find_best_match_cuda(img1,  # image where we gotta find our point
+                    img2,  # image where we pined point
+                    point_coor, 
+                    window_size, 
+                    vicinity_size, 
+                    metric_fn, # metric function wanna maximize: metric_fn(crop1, crop2, coefs)
+                    mode='max',
+                    coefs=None): # coeficients for metric_fn
+    
+    assert mode in ['max', 'min']
+    
+    ref_window_lcx = point_coor[1]-window_size[1]//2
+    ref_window_rcx = ref_window_lcx+window_size[1]
+    ref_window_ucy = point_coor[0]-window_size[0]//2
+    ref_window_dcy = ref_window_ucy+window_size[0]
+    
+    vicinity_lcx = point_coor[1]-vicinity_size[1]//2
+    vicinity_rcx = vicinity_lcx+vicinity_size[1]
+    vicinity_ucy = point_coor[0]-vicinity_size[0]//2
+    vicinity_dcy = vicinity_ucy+vicinity_size[0]
+    
+    ref_image = img1[ref_window_ucy:ref_window_dcy, ref_window_lcx:ref_window_rcx].reshape(-1)
+    
     best_score = -float('infinity') if mode == 'max' else float('infinity')
     best_idx = [None, None]
     
-    for i in range(point_coor[0]-halfv0, point_coor[0]+halfv0-halfw0*2):
-        for j in range(point_coor[1]-halfv1, point_coor[1]+halfv1-halfw1*2):
-            score = metric_fn(ref_image, img2[i:i+halfw0*2, j:j+halfw1*2], coefs)
-            tmp = mode_comp(score, best_score, mode)
-            if tmp == score:
-                best_score = tmp
-                best_idx[0] = i
-                best_idx[1] = j
-    return best_idx, best_score
-            
-            
-            
-            
-            
+    idx = []
+    imgs = torch.empty((
+        (vicinity_dcy-window_size[0]-vicinity_ucy)*(vicinity_rcx-window_size[1]-vicinity_lcx)+1,
+        window_size[1]*window_size[0]))
+    c = 0
+    for y in range(vicinity_ucy, vicinity_dcy-window_size[0]):
+        for x in range(vicinity_lcx, vicinity_rcx-window_size[1]):
+            c += 1
+            idx.append([(2*y + window_size[0])//2, (2*x + window_size[1])//2])
+            img2_crop = img2[y:y+window_size[0], x:x+window_size[1]]
+            imgs[c] = img2_crop.reshape(-1)
+    
+    imgs = imgs.cuda()
+    
+    return metric_fn(ref_image, imgs, coefs)
+
+
+def ssim_cuda(x, y, coefs):
+    if coefs is None:
+        alpha = 1
+        beta = 1
+        gamma = 1
+    else:
+        alpha = coefs['alpha']
+        beta = coefs['beta']
+        gamma = coefs['gamma']
     
     
+    x_mean = torch.mean(x)
+    y_mean = torch.mean(y, 1)
+    x_diff = x - x_mean
+    y_diff = y - y_mean.view(-1, 1)
+    x_std = torch.std(x)
+    y_std = torch.std(y, 1)
+    x = x.reshape(1, -1)
     
+    print(x.size(), y.size(), x_mean.size(), y_mean.size(), x_diff.size(), y_diff.size(), x_std.size(), y_std.size())
     
+    C = torch.sum(x_diff*y_diff, 1) / torch.sqrt(torch.sum(torch.pow(x_diff,2), 1)*torch.sum(torch.pow(y_diff,2), 1))
+    E = 1 - torch.sum(torch.abs(y_diff-x_diff), 1) / (torch.sum(torch.abs(x_diff), 1) + torch.sum(torch.abs(y_diff), 1))
+    S = 2*x_std*y_std/ (torch.pow(x_std,2) + torch.pow(y_std,2))
     
-    
-    
-    
-    
-    
-    
-    
+    ssim = (C**alpha * E**beta * S**gamma).cpu()
+    return ssim
