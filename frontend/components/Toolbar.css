@@ -1,0 +1,8 @@
+.toolbar {
+    width: 150px;
+    height: 40px;
+    position: absolute;
+    right: 1%;
+    top: 1%;
+    background-color: rgba(0, 0, 0, 0.4);
+}

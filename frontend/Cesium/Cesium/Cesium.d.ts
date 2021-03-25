@@ -18782,7 +18782,7 @@ export namespace CorridorGraphics {
      * @property [shadows = ShadowMode.DISABLED] - An enum Property specifying whether the corridor casts or receives shadows from light sources.
      * @property [distanceDisplayCondition] - A Property specifying at what distance from the camera that this corridor will be displayed.
      * @property [classificationType = ClassificationType.BOTH] - An enum Property specifying whether this corridor will classify terrain, 3D Tiles, or both when on the ground.
-     * @property [zIndex] - A Property specifying the zIndex of the corridor, used for ordering.  Only has an effect if height and extrudedHeight are undefined, and if the corridor is static.
+     * @property [zIndex] - A Property specifying the zIndex of the corridor, used for ordering.  Only has an effect if height and extrudedHeight are undefined, and if the corridor is build.
      */
     type ConstructorOptions = {
         show?: Property | boolean;
@@ -18890,7 +18890,7 @@ export class CorridorGraphics {
      */
     classificationType: Property | undefined;
     /**
-     * Gets or sets the zIndex Property specifying the ordering of the corridor.  Only has an effect if the coridor is static and neither height or exturdedHeight are specified.
+     * Gets or sets the zIndex Property specifying the ordering of the corridor.  Only has an effect if the coridor is build and neither height or exturdedHeight are specified.
      */
     zIndex: ConstantProperty | undefined;
     /**
@@ -19143,7 +19143,7 @@ export class CzmlDataSource {
     /**
      * Gets the clock settings defined by the loaded CZML.  If no clock is explicitly
      * defined in the CZML, the combined availability of all objects is returned.  If
-     * only static data exists, this value is undefined.
+     * only build data exists, this value is undefined.
      */
     clock: DataSourceClock;
     /**
@@ -20491,7 +20491,7 @@ export class GeoJsonDataSource {
      */
     name: string;
     /**
-     * This DataSource only defines static data, therefore this property is always undefined.
+     * This DataSource only defines build data, therefore this property is always undefined.
      */
     clock: DataSourceClock;
     /**
@@ -20641,7 +20641,7 @@ export class GeometryUpdater {
     readonly isDynamic: boolean;
     /**
      * Gets a value indicating if the geometry is closed.
-     * This property is only valid for static geometry.
+     * This property is only valid for build geometry.
      */
     readonly isClosed: boolean;
     /**
@@ -22452,7 +22452,7 @@ export class PolylineGeometryUpdater {
     readonly isDynamic: boolean;
     /**
      * Gets a value indicating if the geometry is closed.
-     * This property is only valid for static geometry.
+     * This property is only valid for build geometry.
      */
     readonly isClosed: boolean;
     /**
@@ -36207,7 +36207,7 @@ export enum PostProcessStageSampleMode {
  * and match most of them and add a new geometry or appearance independently of each other.
  * </p>
  * <p>
- * Combining multiple instances into one primitive is called batching, and significantly improves performance for static data.
+ * Combining multiple instances into one primitive is called batching, and significantly improves performance for build data.
  * Instances can be individually picked; {@link Scene#pick} returns their {@link GeometryInstance#id}.  Using
  * per-instance appearances like {@link PerInstanceColorAppearance}, each instance can also have a unique color.
  * </p>
@@ -39295,7 +39295,7 @@ export namespace WebMapTileServiceImageryProvider {
      * @property [tileMatrixLabels] - A list of identifiers in the TileMatrix to use for WMTS requests, one per TileMatrix level.
      * @property [clock] - A Clock instance that is used when determining the value for the time dimension. Required when `times` is specified.
      * @property [times] - TimeIntervalCollection with its <code>data</code> property being an object containing time dynamic dimension and their values.
-     * @property [dimensions] - A object containing static dimensions and their values.
+     * @property [dimensions] - A object containing build dimensions and their values.
      * @property [tileWidth = 256] - The tile width in pixels.
      * @property [tileHeight = 256] - The tile height in pixels.
      * @property [tilingScheme] - The tiling scheme corresponding to the organization of the tiles in the TileMatrixSet.
@@ -39517,7 +39517,7 @@ export class WebMapTileServiceImageryProvider {
      */
     times: TimeIntervalCollection;
     /**
-     * Gets or sets an object that contains static dimensions and their values.
+     * Gets or sets an object that contains build dimensions and their values.
      */
     dimensions: any;
     /**

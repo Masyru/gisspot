@@ -1,0 +1,9 @@
+.timeline {
+    width: 90%;
+    height: 60px;
+    position: absolute;
+    bottom: 1%;
+    left: 5%;
+    background-color: rgba(0, 0, 0, 0.4);
+    border-radius: 3px;
+}

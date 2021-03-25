@@ -1,7 +1,7 @@
 window.CESIUM_BASE_URL = '/Cesium/Cesium';
 
 import * as Cesium from 'cesium';
-import { getPointCoords } from "./Objects";
+import { getPointCoords, flyToCurrentPos } from "./Objects";
 import "./Cesium/Widgets/widgets.css";
 
 // Grant CesiumJS access to your ion assets
@@ -49,3 +49,4 @@ viewer.camera.flyTo({
 });
 
 getPointCoords(viewer);
+flyToCurrentPos(viewer);

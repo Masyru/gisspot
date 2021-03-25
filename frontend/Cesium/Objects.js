@@ -1,5 +1,6 @@
 import * as Cesium from "cesium";
 
+// Get current coords of place
 export function getPointCoords(viewer){
 
     let handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
@@ -17,7 +18,35 @@ export function getPointCoords(viewer){
         }
     }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
-    // // remove the event
-    // handler.removeInputAction(Cesium.ScreenSpaceEventType.LEFT_CLICK);
-
 }
+
+
+// Fly to current location
+// TODO Need to fix
+export function flyToCurrentPos(viewer){
+
+    let options = {
+      enableHighAccuracy: true,
+      timeout: 5000,
+      maximumAge: 0
+    }
+
+    function success(pos) {
+      let crd = pos.coords;
+
+      console.log('Ваше текущее местоположение:');
+      console.log(`Широта: ${crd.latitude}`);
+      console.log(`Долгота: ${crd.longitude}`);
+
+      let currentEntity = { longitude: crd.longitude, latitude: crd.latitude}
+      viewer.flyTo(currentEntity)
+
+    }
+
+    function error(err) {
+      console.warn(`ERROR(${err.code}): ${err.message}`);
+    }
+
+    navigator.geolocation.getCurrentPosition(success, error, options);
+}
+
