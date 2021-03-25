@@ -159,6 +159,32 @@ def ssim(x, y, coefs):
     
     ssim = C**alpha * E**beta * S**gamma
     return ssim
+
+
+def ssim_cuda(x, y, coefs):
+    if coefs is None:
+        alpha = 1
+        beta = 1
+        gamma = 1
+    else:
+        alpha = coefs['alpha']
+        beta = coefs['beta']
+        gamma = coefs['gamma']
+    
+    x = x.reshape(1, -1)
+    x_mean = torch.mean(x, 1)
+    y_mean = torch.mean(y, 1)
+    x_diff = x - x_mean.view(-1, 1)
+    y_diff = y - y_mean.view(-1, 1)
+    x_std = torch.std(x, 1)
+    y_std = torch.std(y, 1)
+
+    C = torch.sum(x_diff*y_diff, 1) / torch.sqrt(torch.sum(torch.pow(x_diff,2), 1)*torch.sum(torch.pow(y_diff,2), 1))
+    E = 1 - torch.sum(torch.abs(x_diff - y_diff), 1) / (torch.sum(torch.abs(x_diff), 1) + torch.sum(torch.abs(y_diff), 1))
+    S = 2*x_std*y_std/ (torch.pow(x_std,2) + torch.pow(y_std,2))
+    
+    ssim = (C**alpha * E**beta * S**gamma).cpu()
+    return ssim
     
 
 def mode_comp(a, b, mode):
@@ -202,6 +228,13 @@ def find_best_match(img1,  # image where we gotta find our point
     return best_idx, best_score
 
 
+def rmse_cuda(x, y, coefs):
+    x = x.reshape(1, -1)
+    score = torch.sqrt(torch.mean(torch.pow(x-y, 2), 1))
+    return score
+
+
+# GPU version of the search algorithm
 def find_best_match_cuda(img1,  # image where we gotta find our point
                     img2,  # image where we pined point
                     point_coor, 
@@ -209,6 +242,7 @@ def find_best_match_cuda(img1,  # image where we gotta find our point
                     vicinity_size, 
                     metric_fn, # metric function wanna maximize: metric_fn(crop1, crop2, coefs)
                     mode='max',
+                    ref_image=None,
                     coefs=None): # coeficients for metric_fn
     
     assert mode in ['max', 'min']
@@ -225,50 +259,48 @@ def find_best_match_cuda(img1,  # image where we gotta find our point
     
     ref_image = img1[ref_window_ucy:ref_window_dcy, ref_window_lcx:ref_window_rcx].reshape(-1)
     
-    best_score = -float('infinity') if mode == 'max' else float('infinity')
-    best_idx = [None, None]
-    
     idx = []
-    imgs = torch.empty((
-        (vicinity_dcy-window_size[0]-vicinity_ucy)*(vicinity_rcx-window_size[1]-vicinity_lcx)+1,
-        window_size[1]*window_size[0]))
+    imgs = torch.zeros((
+        (vicinity_size[0]-window_size[0])*(vicinity_size[1]-window_size[1]),
+        window_size[1]*window_size[0]
+    ))
+    
     c = 0
+  
     for y in range(vicinity_ucy, vicinity_dcy-window_size[0]):
         for x in range(vicinity_lcx, vicinity_rcx-window_size[1]):
-            c += 1
             idx.append([(2*y + window_size[0])//2, (2*x + window_size[1])//2])
             img2_crop = img2[y:y+window_size[0], x:x+window_size[1]]
             imgs[c] = img2_crop.reshape(-1)
+            c += 1
     
     imgs = imgs.cuda()
-    
-    return metric_fn(ref_image, imgs, coefs)
-
-
-def ssim_cuda(x, y, coefs):
-    if coefs is None:
-        alpha = 1
-        beta = 1
-        gamma = 1
+    scores = metric_fn(ref_image, imgs, coefs)
+    if mode == 'max':
+        l = torch.argmax(scores).item()
+        return idx[l], scores[l].item()
     else:
-        alpha = coefs['alpha']
-        beta = coefs['beta']
-        gamma = coefs['gamma']
+        l = torch.argmin(scores).item()
+        return idx[l], scores[l].item()
     
+if __name__ == '__main__':
+    b0, data1 = parse('20060504_072852_NOAA_12.m.pro')
+    data1 = data1.astype(float)
+    data1[data1 < 0] = -1000
     
-    x_mean = torch.mean(x)
-    y_mean = torch.mean(y, 1)
-    x_diff = x - x_mean
-    y_diff = y - y_mean.view(-1, 1)
-    x_std = torch.std(x)
-    y_std = torch.std(y, 1)
-    x = x.reshape(1, -1)
+    b0, data2 = parse('20060504_125118_NOAA_17.m.pro')
+    data2 = data2.astype(float)
+    data2[data2 < 0] = -1000
     
-    print(x.size(), y.size(), x_mean.size(), y_mean.size(), x_diff.size(), y_diff.size(), x_std.size(), y_std.size())
+    point_coors = [[835, 420]]
+    wind_size = (21, 21)
+    vicinity_size = (100, 100)
     
-    C = torch.sum(x_diff*y_diff, 1) / torch.sqrt(torch.sum(torch.pow(x_diff,2), 1)*torch.sum(torch.pow(y_diff,2), 1))
-    E = 1 - torch.sum(torch.abs(y_diff-x_diff), 1) / (torch.sum(torch.abs(x_diff), 1) + torch.sum(torch.abs(y_diff), 1))
-    S = 2*x_std*y_std/ (torch.pow(x_std,2) + torch.pow(y_std,2))
-    
-    ssim = (C**alpha * E**beta * S**gamma).cpu()
-    return ssim
+    data1 = torch.tensor(data1).cuda()
+    data2 = torch.tensor(data2).cuda()
+
+    idx, score = find_best_match_cuda(data1, data2, point_coors[0], 
+                                      wind_size, vicinity_size, ssim_cuda, 
+                                      mode='max')
+    print(idx)
+    print(score)
