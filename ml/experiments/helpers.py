@@ -115,17 +115,6 @@ def parse(fname):
     f.close()
     return b0, data
 
-def convert_image(b0, data):
-    mask = data[data<0]
-    data = b0['ka']*data + b0['kb']
-    data[mask] = np.nan
-    return data
-
-def normalize(data):
-    data = data/data.max()
-    data[data < 0] = np.nan
-    return data
-
 def rmse(data1, data2, coefs):
     data1 = data1[~np.isnan(data1)].reshape(-1)
     data2 = data2[~np.isnan(data2)].reshape(-1)
@@ -241,8 +230,8 @@ def find_best_match_cuda(img1,  # image where we gotta find our point
                     window_size, 
                     vicinity_size, 
                     metric_fn, # metric function wanna maximize: metric_fn(crop1, crop2, coefs)
+                    device,
                     mode='max',
-                    ref_image=None,
                     coefs=None): # coeficients for metric_fn
     
     assert mode in ['max', 'min']
@@ -274,7 +263,7 @@ def find_best_match_cuda(img1,  # image where we gotta find our point
             imgs[c] = img2_crop.reshape(-1)
             c += 1
     
-    imgs = imgs.cuda()
+    imgs = imgs.to(device)
     scores = metric_fn(ref_image, imgs, coefs)
     if mode == 'max':
         l = torch.argmax(scores).item()
