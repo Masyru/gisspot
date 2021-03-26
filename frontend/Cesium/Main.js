@@ -1,6 +1,6 @@
 window.CESIUM_BASE_URL = '/Cesium/Cesium';
 
-import * as Cesium from 'cesium';
+const Cesium = require("cesium");
 import { getPointCoords, flyToCurrentPos } from "./Objects";
 import "./Cesium/Widgets/widgets.css";
 
