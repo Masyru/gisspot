@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import matplotlib as mpl
 
 b0_common_dt = np.dtype([
     ("formatType", np.uint8),
@@ -115,42 +116,22 @@ def parse(fname):
     f.close()
     return b0, data
 
-def rmse(data1, data2, coefs):
-    data1 = data1[~np.isnan(data1)].reshape(-1)
-    data2 = data2[~np.isnan(data2)].reshape(-1)
-    return np.sqrt(((data1-data2)**2).sum()/data1.shape[0])
+def generate_points(img, x0, y0, dx, dy, step, window_size, nan_val=-100):  
+    points = []
+    for x in range(x0+window_size[1]//2, x0+dx-window_size[1]//2, step):
+        for y in range(y0+window_size[0]//2, y0+dy-window_size[0]//2, step):
+            if img[y, x] != -100:
+                points.append([y, x])
+    return points
+
+def colorFader(c1, c2, mix=0): #fade (linear interpolate) from color c1 (at mix=0) to c2 (mix=1)
+    assert mix >= 0 and mix <= 1
+    c1=np.array(mpl.colors.to_rgb(c1))
+    c2=np.array(mpl.colors.to_rgb(c2))
+    return mpl.colors.to_hex((1-mix)*c1 + mix*c2)
+    
 
 def ssim(x, y, coefs):
-    if coefs is None:
-        alpha = 1
-        beta = 1
-        gamma = 1
-    else:
-        alpha = coefs['alpha']
-        beta = coefs['beta']
-        gamma = coefs['gamma']
-    
-    x = x.reshape(-1)
-    y = y.reshape(-1)
-    x = x[~np.isnan(x)]
-    y = y[~np.isnan(x)]
-    
-    x_mean = np.mean(x)
-    y_mean = np.mean(y)
-    x_diff = x - x_mean
-    y_diff = y - y_mean
-    x_std = np.std(x)
-    y_std = np.std(y)
-
-    C = np.sum(x_diff*y_diff) / np.sqrt(np.sum(np.power(x_diff,2))*np.sum(np.power(y_diff,2)))
-    E = 1 - np.sum(np.abs(x_diff - y_diff)) / (np.sum(np.abs(x_diff)) + np.sum(np.abs(y_diff)))
-    S = 2*x_std*y_std/ (np.power(x_std,2) + np.power(y_std,2))
-    
-    ssim = C**alpha * E**beta * S**gamma
-    return ssim
-
-
-def ssim_cuda(x, y, coefs):
     if coefs is None:
         alpha = 1
         beta = 1
@@ -174,57 +155,13 @@ def ssim_cuda(x, y, coefs):
     
     ssim = (C**alpha * E**beta * S**gamma).cpu()
     return ssim
-    
 
-def mode_comp(a, b, mode):
-    return max(a, b) if mode == 'max' else min(a, b)
-
-def find_best_match(img1,  # image where we gotta find our point
-                    img2,  # image where we pined point
-                    point_coor, 
-                    window_size, 
-                    vicinity_size, 
-                    metric_fn, # metric function wanna maximize: metric_fn(crop1, crop2, coefs)
-                    mode='max',
-                    coefs=None): # coeficients for metric_fn
-    
-    assert mode in ['max', 'min']
-    
-    ref_window_lcx = point_coor[1]-window_size[1]//2
-    ref_window_rcx = ref_window_lcx+window_size[1]
-    ref_window_ucy = point_coor[0]-window_size[0]//2
-    ref_window_dcy = ref_window_ucy+window_size[0]
-    
-    vicinity_lcx = point_coor[1]-vicinity_size[1]//2
-    vicinity_rcx = vicinity_lcx+vicinity_size[1]
-    vicinity_ucy = point_coor[0]-vicinity_size[0]//2
-    vicinity_dcy = vicinity_ucy+vicinity_size[0]
-    
-    ref_image = img1[ref_window_ucy:ref_window_dcy, ref_window_lcx:ref_window_rcx]
-    
-    best_score = -float('infinity') if mode == 'max' else float('infinity')
-    best_idx = [None, None]
-    for y in range(vicinity_ucy, vicinity_dcy-window_size[0]):
-        for x in range(vicinity_lcx, vicinity_rcx-window_size[1]):
-            img2_crop = img2[y:y+window_size[0], x:x+window_size[1]]
-            score = metric_fn(ref_image, img2_crop, coefs)
-            tmp = mode_comp(score, best_score, mode)
-            if tmp == score:
-                best_score = score
-                best_idx[0] = (2*y + window_size[0])//2
-                best_idx[1] = (2*x + window_size[1])//2
-    
-    return best_idx, best_score
-
-
-def rmse_cuda(x, y, coefs):
+def rmse(x, y, coefs):
     x = x.reshape(1, -1)
     score = torch.sqrt(torch.mean(torch.pow(x-y, 2), 1))
     return score
 
-
-# GPU version of the search algorithm
-def find_best_match_cuda(img1,  # image where we gotta find our point
+def find_best_match(img1,  # image where we gotta find our point
                     img2,  # image where we pined point
                     point_coor, 
                     window_size, 
@@ -241,10 +178,38 @@ def find_best_match_cuda(img1,  # image where we gotta find our point
     ref_window_ucy = point_coor[0]-window_size[0]//2
     ref_window_dcy = ref_window_ucy+window_size[0]
     
+    assert ref_window_lcx >= 0
+    assert ref_window_rcx < img2.shape[1]
+    assert ref_window_ucy >= 0
+    assert ref_window_dcy < img2.shape[0]
+    
     vicinity_lcx = point_coor[1]-vicinity_size[1]//2
     vicinity_rcx = vicinity_lcx+vicinity_size[1]
+    
+    # BADTRIP HANDLER 1
+    if vicinity_lcx < 0:
+        vicinity_lcx = 0
+        vicinity_rcx = vicinity_size[1]
+    # BADTRIP HANDLER 2
+    if vicinity_rcx >= img2.shape[1]:
+        vicinity_rcx = img2.shape[1]-1
+        vicinity_lcx = vicinity_rcx - vicinity_size[1]
+        if vicinity_lcx < 0:
+            vicinity_lcx = 0
+    
     vicinity_ucy = point_coor[0]-vicinity_size[0]//2
     vicinity_dcy = vicinity_ucy+vicinity_size[0]
+    
+    # BADTRIP HANDLER 3
+    if vicinity_ucy < 0:
+        vicinity_ucy = 0
+        vicinity_dcy = vicinity_size[0]
+    # BADTRIP HANDLER 4
+    if vicinity_dcy >= img2.shape[0]:
+        vicinity_dcy = img2.shape[0]-1
+        vicinity_ucy = vicinity_dcy - vicinity_size[0]
+        if vicinity_dcy < 0:
+            vicinity_dcy = 0
     
     ref_image = img1[ref_window_ucy:ref_window_dcy, ref_window_lcx:ref_window_rcx].reshape(-1)
     
@@ -273,23 +238,25 @@ def find_best_match_cuda(img1,  # image where we gotta find our point
         return idx[l], scores[l].item()
     
 if __name__ == '__main__':
+    device = 'cpu'
+    
     b0, data1 = parse('20060504_072852_NOAA_12.m.pro')
     data1 = data1.astype(float)
-    data1[data1 < 0] = -1000
+    data1[data1 < 0] = -100
     
     b0, data2 = parse('20060504_125118_NOAA_17.m.pro')
     data2 = data2.astype(float)
-    data2[data2 < 0] = -1000
+    data2[data2 < 0] = -100
     
-    point_coors = [[835, 420]]
+    point_coors = [[1400, 1515]]
     wind_size = (21, 21)
     vicinity_size = (100, 100)
     
-    data1 = torch.tensor(data1).cuda()
-    data2 = torch.tensor(data2).cuda()
+    data1 = torch.tensor(data1).to(device)
+    data2 = torch.tensor(data2).to(device)
 
-    idx, score = find_best_match_cuda(data1, data2, point_coors[0], 
-                                      wind_size, vicinity_size, ssim_cuda, 
+    idx, score = find_best_match(data1, data2, point_coors[0], 
+                                      wind_size, vicinity_size, ssim, device,
                                       mode='max')
     print(idx)
     print(score)
