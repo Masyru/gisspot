@@ -1,8 +1,38 @@
 .toolbar {
-    width: 150px;
+    width: 120px;
     height: 40px;
     position: absolute;
     right: 1%;
     top: 1%;
     background-color: rgba(0, 0, 0, 0.4);
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 10px;
+    border-radius: 5px;
+}
+
+.toolbar button {
+    outline: none;
+    width: 35px;
+    height: 30px;
+    border-radius: 3px;
+    border: transparent 1px solid;
+    margin: 0;
+    padding: 1px 5px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: all 100ms ease-in;
+}
+
+.toolbar button:hover {
+    background-color: #cbcbcb;
+}
+
+.toolbar button:disabled:hover,
+.toolbar button[disabled]:hover{
+    color: rgba(16, 16, 16, 0.3);
+    background-color: rgba(239, 239, 239, 0.3);
 }
