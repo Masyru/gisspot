@@ -29,7 +29,7 @@ export function flyToCurrentPos(viewer){
       enableHighAccuracy: true,
       timeout: 5000,
       maximumAge: 0
-    }
+    };
 
     function success(pos) {
       let crd = pos.coords;
@@ -38,7 +38,7 @@ export function flyToCurrentPos(viewer){
       console.log(`Широта: ${crd.latitude}`);
       console.log(`Долгота: ${crd.longitude}`);
 
-      let currentEntity = { longitude: crd.longitude, latitude: crd.latitude}
+      let currentEntity = { longitude: crd.longitude, latitude: crd.latitude};
       viewer.flyTo(currentEntity)
 
     }
