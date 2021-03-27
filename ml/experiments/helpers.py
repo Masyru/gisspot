@@ -1,6 +1,9 @@
 import numpy as np
 import torch
 import matplotlib as mpl
+import cv2
+import pysift
+from math import sin, cos, sqrt, atan2, radians
 
 b0_common_dt = np.dtype([
     ("formatType", np.uint8),
@@ -120,7 +123,7 @@ def generate_points(img, x0, y0, dx, dy, step, window_size, nan_val=-100):
     points = []
     for x in range(x0+window_size[1]//2, x0+dx-window_size[1]//2, step):
         for y in range(y0+window_size[0]//2, y0+dy-window_size[0]//2, step):
-            if img[y, x] != -100:
+            if img[y, x] != nan_val:
                 points.append([y, x])
     return points
 
@@ -129,6 +132,27 @@ def colorFader(c1, c2, mix=0): #fade (linear interpolate) from color c1 (at mix=
     c1=np.array(mpl.colors.to_rgb(c1))
     c2=np.array(mpl.colors.to_rgb(c2))
     return mpl.colors.to_hex((1-mix)*c1 + mix*c2)
+
+#   latitude - y
+#   longitude - x
+def calculate_distance(metadata, xy1, xy2):
+    R = 6373.0
+    lat_res = metadata['b0_proj_common']['latRes']
+    lon_res = metadata['b0_proj_common']['lonRes']
+    
+    lat1 = radians(xy1[0]*lat_res/3600)
+    lon1 = radians(xy1[1]*lon_res/3600)
+    lat2 = radians(xy2[0]*lat_res/3600)
+    lon2 = radians(xy2[1]*lon_res/3600)
+    
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1
+
+    a = sin(dlat / 2)**2 + cos(lat1) * cos(lat2) * sin(dlon / 2)**2
+    c = 2 * atan2(sqrt(a), sqrt(1 - a))
+
+    distance = R * c * 1000
+    return distance
     
 
 def ssim(x, y, coefs):
@@ -151,7 +175,7 @@ def ssim(x, y, coefs):
 
     C = torch.sum(x_diff*y_diff, 1) / torch.sqrt(torch.sum(torch.pow(x_diff,2), 1)*torch.sum(torch.pow(y_diff,2), 1))
     E = 1 - torch.sum(torch.abs(x_diff - y_diff), 1) / (torch.sum(torch.abs(x_diff), 1) + torch.sum(torch.abs(y_diff), 1))
-    S = 2*x_std*y_std/ (torch.pow(x_std,2) + torch.pow(y_std,2))
+    S = 2*x_std*y_std/(torch.pow(x_std,2) + torch.pow(y_std,2))
     
     ssim = (C**alpha * E**beta * S**gamma).cpu()
     return ssim
@@ -160,6 +184,14 @@ def rmse(x, y, coefs):
     x = x.reshape(1, -1)
     score = torch.sqrt(torch.mean(torch.pow(x-y, 2), 1))
     return score
+
+def prepare_ref_img(img, point_coor, window_size):
+    ref_window_lcx = point_coor[1]-window_size[1]//2
+    ref_window_rcx = ref_window_lcx+window_size[1]
+    ref_window_ucy = point_coor[0]-window_size[0]//2
+    ref_window_dcy = ref_window_ucy+window_size[0]
+    
+    return img[ref_window_ucy:ref_window_dcy, ref_window_lcx:ref_window_rcx]
 
 def find_best_match(img1,  # image where we gotta find our point
                     img2,  # image where we pined point
@@ -172,17 +204,8 @@ def find_best_match(img1,  # image where we gotta find our point
                     coefs=None): # coeficients for metric_fn
     
     assert mode in ['max', 'min']
-    
-    ref_window_lcx = point_coor[1]-window_size[1]//2
-    ref_window_rcx = ref_window_lcx+window_size[1]
-    ref_window_ucy = point_coor[0]-window_size[0]//2
-    ref_window_dcy = ref_window_ucy+window_size[0]
-    
-    assert ref_window_lcx >= 0
-    assert ref_window_rcx < img2.shape[1]
-    assert ref_window_ucy >= 0
-    assert ref_window_dcy < img2.shape[0]
-    
+
+    ref_image = prepare_ref_img(img1, point_coor, window_size)
     vicinity_lcx = point_coor[1]-vicinity_size[1]//2
     vicinity_rcx = vicinity_lcx+vicinity_size[1]
     
@@ -210,32 +233,66 @@ def find_best_match(img1,  # image where we gotta find our point
         vicinity_ucy = vicinity_dcy - vicinity_size[0]
         if vicinity_dcy < 0:
             vicinity_dcy = 0
-    
-    ref_image = img1[ref_window_ucy:ref_window_dcy, ref_window_lcx:ref_window_rcx].reshape(-1)
-    
+        
     idx = []
+    yx = []
     imgs = torch.zeros((
-        (vicinity_size[0]-window_size[0])*(vicinity_size[1]-window_size[1]),
+        (vicinity_dcy-vicinity_ucy-window_size[0])*(vicinity_rcx-vicinity_lcx-window_size[1]),
         window_size[1]*window_size[0]
-    ))
+    )).to(device)
     
     c = 0
   
     for y in range(vicinity_ucy, vicinity_dcy-window_size[0]):
         for x in range(vicinity_lcx, vicinity_rcx-window_size[1]):
             idx.append([(2*y + window_size[0])//2, (2*x + window_size[1])//2])
+            yx.append([y, x])
             img2_crop = img2[y:y+window_size[0], x:x+window_size[1]]
             imgs[c] = img2_crop.reshape(-1)
             c += 1
     
-    imgs = imgs.to(device)
     scores = metric_fn(ref_image, imgs, coefs)
     if mode == 'max':
         l = torch.argmax(scores).item()
-        return idx[l], scores[l].item()
+        return idx[l], scores[l].item(), imgs[l].cpu().view(window_size[0], window_size[1]), yx[l]
     else:
         l = torch.argmin(scores).item()
-        return idx[l], scores[l].item()
+        return idx[l], scores[l].item(), imgs[l].cpu().view(window_size[0], window_size[1]), yx[l]
+
+def find_best_in_vicinity(vicinity, ref_image, yx_global, 
+                    window_size, metric_fn, # metric function wanna maximize: metric_fn(crop1, crop2, coefs)
+                    device, mode='max', coefs=None):
+    
+    assert mode in ['max', 'min']
+    assert vicinity.shape[0] > window_size[0]
+    assert vicinity.shape[1] > window_size[1]
+    
+    idx = []
+    yx = []
+    imgs = torch.zeros((
+        (vicinity.shape[0]-window_size[0])*(vicinity.shape[1]-window_size[1]),
+        window_size[1]*window_size[0]
+    )).to(device)
+    
+    c = 0
+  
+    for y in range(vicinity.shape[0]-window_size[0]):
+        for x in range(vicinity.shape[1]-window_size[1]):
+            tmp_y = y + yx_global[0]
+            tmp_x = x + yx_global[1]
+            idx.append([(2*tmp_y + window_size[0])//2, (2*tmp_x + window_size[1])//2])
+            yx.append([tmp_y, tmp_x])
+            img2_crop = vicinity[y:y+window_size[0], x:x+window_size[1]]
+            imgs[c] = img2_crop.reshape(-1)
+            c += 1
+    
+    scores = metric_fn(ref_image, imgs, coefs)
+    if mode == 'max':
+        l = torch.argmax(scores).item()
+        return idx[l], scores[l].item(), imgs[l].cpu().view(window_size[0], window_size[1]), yx[l]
+    else:
+        l = torch.argmin(scores).item()
+        return idx[l], scores[l].item(), imgs[l].cpu().view(window_size[0], window_size[1]), yx[l]
     
 if __name__ == '__main__':
     device = 'cpu'
@@ -248,15 +305,11 @@ if __name__ == '__main__':
     data2 = data2.astype(float)
     data2[data2 < 0] = -100
     
-    point_coors = [[1400, 1515]]
-    wind_size = (21, 21)
-    vicinity_size = (100, 100)
-    
-    data1 = torch.tensor(data1).to(device)
-    data2 = torch.tensor(data2).to(device)
-
-    idx, score = find_best_match(data1, data2, point_coors[0], 
-                                      wind_size, vicinity_size, ssim, device,
-                                      mode='max')
-    print(idx)
-    print(score)
+    kp1, des1 = pysift.detectAndCompute(img1,None)
+    kp2, des2 = pysift.detectAndCompute(img2,None)
+    # create BFMatcher object
+    bf = cv2.BFMatcher(cv2.L1_NORM, crossCheck=True)
+    # Match descriptors.
+    matches = bf.match(des1,des2)
+    matches = sorted(matches, key = lambda x:x.distance) 
+    print(matches)
