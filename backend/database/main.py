@@ -1,7 +1,11 @@
-from pystac import Asset, Catalog, CatalogType, read_file
-from services import add_assets, create_item, parse
+from pystac import Asset, Catalog, Collection, CatalogType, read_file, \
+    Extent, SpatialExtent, TemporalExtent, Item
+from services import parse
 import os
 from pathlib import Path
+from typing import Optional
+
+from .services import stac
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -40,25 +44,33 @@ class GisSpotStac:
         tiff_path = ""  # TODO: gen tiff file from pro file;
 
         b0, data = parse(path)
-        item = create_item(i_id=file_name,
+        item = stac.create_item(i_id=file_name,
                            metadata=b0)
         assets: list[Asset] = [
             Asset(href=path, media_type=".pro"),
             Asset(href=tiff_path, media_type=".tiff")
         ]
-        add_assets(item, assets)
+        stac.add_assets(item, assets)
+        extent = Extent(spatial=SpatialExtent([-180, -90, 180, 90]),  # TODO: Реальный Extent
+                        temporal=TemporalExtent(["2009-01-01T00:00:00Z", None]))
 
         catalog = self.root_catalog.get_child(str(b0["b0_common"]["satId"][0]))
         if catalog is None:
-            catalog = Catalog(id=str(b0["b0_common"]["satId"][0]),
-                              title=b0["b0_common"]["satName"][0].decode("utf-8"),
-                              description=f"Catalog for satellite {b0['b0_common']['satName'][0].decode('utf-8')}")
+            catalog = Collection(id=str(b0["b0_common"]["satId"][0]),
+                                 title=b0["b0_common"]["satName"][0].decode("utf-8"),
+                                 description=f"Catalog for satellite {b0['b0_common']['satName'][0].decode('utf-8')}",
+                                 extent=extent)
             self.root_catalog.add_child(catalog, catalog.title)
         catalog.add_item(item)
 
     def save(self) -> None:
         self.root_catalog.normalize_hrefs(self.path)
         self.root_catalog.save(catalog_type=CatalogType.SELF_CONTAINED)
+
+    def filter(self,
+               filters: Optional[dict]) \
+            -> list[Item]:
+        return stac.filter_children(self.root_catalog, filters)
 
 
 if __name__ == '__main__':
