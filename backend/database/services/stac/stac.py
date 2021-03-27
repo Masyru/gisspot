@@ -4,6 +4,7 @@ from typing import Union, Optional
 
 from backend.database.services.pro_files import b0_proj_dt
 
+
 def create_item(i_id: str,
                 metadata: b0_proj_dt) \
         -> Item:
@@ -95,9 +96,11 @@ def filter_collection(collection: Optional[Collection],
     return filter_children(collection, categories)
 
 
-def is_matching_by_extent(collection_datetime: Optional[list[datetime, datetime]],
+def is_matching_by_extent(collection_datetime: Optional[list[Union[datetime, None],
+                                                             Union[datetime, None]]],
                           collection_bbox: Optional[list[float, float, float, float]],
-                          extent_datetime: Union[list[datetime, datetime], None],
+                          extent_datetime: Union[list[Union[datetime, None],
+                                                      Union[datetime, None]], None],
                           extent_bbox: Union[list[float, float, float, float], None])\
         -> bool:
     if extent_datetime is not None:
@@ -117,9 +120,15 @@ def is_not_intersection_bbox(bbox_1: Optional[list[float, float, float, float]],
            bbox_1[1] > bbox_2[3] or bbox_1[3] < bbox_2[1]
 
 
-def is_not_intersection_timelines(timeline_1: Optional[list[datetime, datetime]],
-                                  timeline_2: Optional[list[datetime, datetime]]):
-    return timeline_1[0] > timeline_2[1] or timeline_2[1] < timeline_2[0]  # TODO: Упадёт если попадёт None
+def is_not_intersection_timelines(timeline_1: Optional[list[Union[datetime, None],
+                                                            Union[datetime, None]]],
+                                  timeline_2: Optional[list[Union[datetime, None],
+                                                            Union[datetime, None]]]):
+    timeline_1, timeline_2 = timeline_1.copy(), timeline_2.copy()
+    _normalize_datetime_interval(timeline_1)
+    _normalize_datetime_interval(timeline_2)
+
+    return timeline_1[0] > timeline_2[1] or timeline_2[1] < timeline_2[0]
 
 
 def converter_datetime(field: Optional[list[str, str]]):
@@ -141,3 +150,12 @@ def processing_filters(filters: dict) -> (dict, dict):
 
 
 SPACIAL_CATEGORIES = {"datetime": converter_datetime, "bbox": lambda el: el}
+
+
+def _normalize_datetime_interval(interval: Optional[list[Union[datetime, None],
+                                                         Union[datetime, None]]]) \
+        -> None:
+    if interval[0] is None:
+        interval[0] = datetime(1, 1, 1, 0, 0, 0, 0)
+    if interval[1] is None:
+        interval[1] = datetime.utcnow()
