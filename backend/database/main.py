@@ -18,8 +18,8 @@ class GisSpotStac:
 
             self.path: str = new_path
             self.root_catalog: Catalog = Catalog(id="GisSpot-root-catalog",
-                                        title="GisSpot-root-catalog",
-                                        description="Root catalog on GisSpot server")
+                                                 title="GisSpot-root-catalog",
+                                                 description="Root catalog on GisSpot server")
 
         else:
             stac_obj = read_file(old_catalog_path)
@@ -45,7 +45,7 @@ class GisSpotStac:
 
         b0, data = parse(path)
         item = stac.create_item(i_id=file_name,
-                           metadata=b0)
+                                metadata=b0)
         assets: list[Asset] = [
             Asset(href=path, media_type=".pro"),
             Asset(href=tiff_path, media_type=".tiff")
@@ -67,13 +67,6 @@ class GisSpotStac:
         self.root_catalog.normalize_hrefs(self.path)
         self.root_catalog.save(catalog_type=CatalogType.SELF_CONTAINED)
 
-    def filter(self,
-               filters: Optional[dict]) \
-            -> list[Item]:
-        return stac.filter_children(self.root_catalog, filters)
-
-
-if __name__ == '__main__':
-    gis_spot_stac = GisSpotStac(new_path="stac/")
-    gis_spot_stac.add_pro_file(os.path.join(BASE_DIR, "database\\pro\\20060504_041254_NOAA_18.m.pro"))
-    gis_spot_stac.save()
+    def filter(self, filters: Optional[dict]) -> list[Item]:
+        return stac.filter_children(self.root_catalog,
+                                    *stac.processing_filters(filters))
