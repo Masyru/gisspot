@@ -17,3 +17,6 @@ class ConnectionManager:
     async def send_data(response_dict: Optional[dict],
                         websocket: Optional[WebSocket]):
         await websocket.send_json(response_dict)
+
+    async def get_ws(self, ws_id: int):
+        return self.active_connections[ws_id]  # TODO: Изменить получение по id

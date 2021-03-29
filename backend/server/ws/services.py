@@ -1,13 +1,8 @@
-def processing_ws(ws_dict: dict) -> dict:
+WS_TYPES = {"processing": lambda data: data}
+
+
+def processing_user(ws_dict: dict) -> None:
     assert "type" in ws_dict and "data" in ws_dict
+    assert ws_dict["type"] in WS_TYPES.keys()
 
-    r_type = ws_dict["type"]
-    assert r_type in ("",)  # TODO: Добавить типы запросов
-
-    data = ws_dict["data"]
-
-    # TODO : Добавить обработку запросов
-
-    return ws_dict
-
-# TODO: Методы для обработки запроса
+    WS_TYPES[ws_dict["type"]](ws_dict["data"])
