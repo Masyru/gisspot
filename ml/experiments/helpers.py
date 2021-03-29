@@ -1,8 +1,6 @@
 import numpy as np
 import torch
 import matplotlib as mpl
-import cv2
-import pysift
 from math import sin, cos, sqrt, atan2, radians
 
 b0_common_dt = np.dtype([
@@ -322,27 +320,18 @@ def find_best_in_vicinity(vicinity, ref_image, yx_global,
         l = torch.argmin(scores).item()
         return idx[l], scores[l].item(), imgs[l].cpu().view(window_size[0], window_size[1]), yx[l]
     
-if __name__ == '__main__':
-    device = 'cpu'
-    
-    b0, data1 = parse('20060504_072852_NOAA_12.m.pro')
-    data1[data1 < 0] = 0
-    data1 = data1.astype(np.uint8)
-    
-    b0, data2 = parse('20060504_125118_NOAA_17.m.pro')
-    data2[data2 < 0] = 0
-    data2 = data2.astype(np.uint8)
-    
-    surf = cv2.SIFT_create()
-    
-    kp1, des1 = surf.detectAndCompute(data1, None)
-    kp2, des2 = surf.detectAndCompute(data2, None)
-    print(kp1)
-    print(des1)
-    # create BFMatcher object
-    bf = cv2.BFMatcher(2, crossCheck=False)
-    # Match descriptors.
-    matches = bf.match(des1,des2)
-    matches = sorted(matches, key = lambda x:x.distance) 
-    
-    print('Hi', matches)
+def filtering(matrix, window_size=(51, 51), perc=10):
+    mask = np.full(matrix.shape, False)
+    for y in range(matrix.shape[0]-window_size[0]):
+        for x in range(matrix.shape[1]-window_size[1]):
+            tmp = matrix[y:y+window_size[0], x:x+window_size[1]]
+            tmp1 = tmp[~np.isnan(tmp)]
+            
+            if len(tmp1) == 0:
+                continue
+            
+            mx = np.quantile(tmp1, 1-perc/100)
+            mn = np.quantile(tmp1, perc/100)
+            
+            mask[y:y+window_size[0], x:x+window_size[1]] += (tmp < mx)*(tmp>mn)
+    return mask > 0
