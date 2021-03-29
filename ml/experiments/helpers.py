@@ -127,6 +127,14 @@ def generate_points(img, x0, y0, dx, dy, step, window_size, nan_val=-100):
                 points.append([y, x])
     return points
 
+def numpy2torch(img1, img2):
+    img1 = img1.astype(float)
+    img1[img1 < 0] = -100
+    
+    img2 = img2.astype(float)
+    img2[img2 < 0] = -100
+    return torch.tensor(img1), torch.tensor(img2)
+
 def colorFader(c1, c2, mix=0): #fade (linear interpolate) from color c1 (at mix=0) to c2 (mix=1)
     assert mix >= 0 and mix <= 1
     c1=np.array(mpl.colors.to_rgb(c1))
@@ -191,7 +199,16 @@ def prepare_ref_img(img, point_coor, window_size):
     ref_window_ucy = point_coor[0]-window_size[0]//2
     ref_window_dcy = ref_window_ucy+window_size[0]
     
-    return img[ref_window_ucy:ref_window_dcy, ref_window_lcx:ref_window_rcx]
+    assert ref_window_lcx >= 0, '0'
+    assert ref_window_rcx < img.shape[1], '0'
+    assert ref_window_ucy >= 0, '0'
+    assert ref_window_dcy < img.shape[0], '0'
+    
+    im = img[ref_window_ucy:ref_window_dcy, ref_window_lcx:ref_window_rcx]
+    
+    assert im[im<0].sum() == 0, '1' # Too noisy
+    
+    return im
 
 def find_best_match(img1,  # image where we gotta find our point
                     img2,  # image where we pined point
@@ -203,7 +220,11 @@ def find_best_match(img1,  # image where we gotta find our point
                     mode='max',
                     coefs=None): # coeficients for metric_fn
     
-    assert mode in ['max', 'min']
+    assert mode in ['max', 'min'], 'Dev exception'
+    
+    assert point_coor[0] >= 0 and point_coor[0] < img2.shape[0], '0' # Out of bounds
+    assert point_coor[1] >= 0 and point_coor[1] < img2.shape[1], '0'
+    
 
     ref_image = prepare_ref_img(img1, point_coor, window_size)
     vicinity_lcx = point_coor[1]-vicinity_size[1]//2
@@ -234,15 +255,22 @@ def find_best_match(img1,  # image where we gotta find our point
         if vicinity_dcy < 0:
             vicinity_dcy = 0
         
+    tmp1 = img1[vicinity_ucy:vicinity_dcy, vicinity_lcx:vicinity_rcx]
+    tmp2 = img2[vicinity_ucy:vicinity_dcy, vicinity_lcx:vicinity_rcx]
+    
+    assert tmp2[tmp2<0].sum()/(tmp2.shape[0]*tmp2.shape[1]) < .7, '1'
+    assert tmp1[tmp1<0].sum()/(tmp1.shape[0]*tmp1.shape[1]) < .7, '1'
+    
     idx = []
     yx = []
+    
     imgs = torch.zeros((
         (vicinity_dcy-vicinity_ucy-window_size[0])*(vicinity_rcx-vicinity_lcx-window_size[1]),
         window_size[1]*window_size[0]
     )).to(device)
     
     c = 0
-  
+    
     for y in range(vicinity_ucy, vicinity_dcy-window_size[0]):
         for x in range(vicinity_lcx, vicinity_rcx-window_size[1]):
             idx.append([(2*y + window_size[0])//2, (2*x + window_size[1])//2])
