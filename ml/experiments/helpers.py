@@ -298,18 +298,23 @@ if __name__ == '__main__':
     device = 'cpu'
     
     b0, data1 = parse('20060504_072852_NOAA_12.m.pro')
-    data1 = data1.astype(float)
-    data1[data1 < 0] = -100
+    data1[data1 < 0] = 0
+    data1 = data1.astype(np.uint8)
     
     b0, data2 = parse('20060504_125118_NOAA_17.m.pro')
-    data2 = data2.astype(float)
-    data2[data2 < 0] = -100
+    data2[data2 < 0] = 0
+    data2 = data2.astype(np.uint8)
     
-    kp1, des1 = pysift.detectAndCompute(img1,None)
-    kp2, des2 = pysift.detectAndCompute(img2,None)
+    surf = cv2.SIFT_create()
+    
+    kp1, des1 = surf.detectAndCompute(data1, None)
+    kp2, des2 = surf.detectAndCompute(data2, None)
+    print(kp1)
+    print(des1)
     # create BFMatcher object
-    bf = cv2.BFMatcher(cv2.L1_NORM, crossCheck=True)
+    bf = cv2.BFMatcher(2, crossCheck=False)
     # Match descriptors.
     matches = bf.match(des1,des2)
     matches = sorted(matches, key = lambda x:x.distance) 
-    print(matches)
+    
+    print('Hi', matches)
