@@ -1,8 +1,8 @@
-window.CESIUM_BASE_URL = '/Cesium/Cesium';
+window.CESIUM_BASE_URL = '/static/Cesium/';
 
 const Cesium = require("cesium");
 import { getPointCoords, flyToCurrentPos } from "./Objects";
-import "./Cesium/Widgets/widgets.css";
+import "../bundle/Cesium/Widgets/widgets.css";
 
 // Grant CesiumJS access to your ion assets
 Cesium.Ion.defaultAccessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJjOGZiMDIxMi02NzYwLTQ5MzgtOTk0ZC02YTJiYWU5MTQyODUiLCJpZCI6MjE0MSwiaWF0IjoxNTMxNzI3NzUzfQ.cRJYZ0l7AOiA2BcvqzY-Z4kIJcyZd2G-ygod2Dw9ZtA";

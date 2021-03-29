@@ -1,5 +1,4 @@
 import React from "react";
-import "../Cesium/Main";
 import { Toolbar } from "./Toolbar";
 import { Timeline } from "./Timeline";
 

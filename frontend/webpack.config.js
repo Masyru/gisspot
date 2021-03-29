@@ -1,4 +1,5 @@
 const path = require('path');
+const webpack = require('webpack');
 
 module.exports = {
     entry: {
@@ -6,7 +7,7 @@ module.exports = {
     },
     output:{
         filename:"./bundle/js/[name].js",
-        path: path.resolve()
+        path: path.resolve(),
     },
     module: {
         rules: [
@@ -14,6 +15,9 @@ module.exports = {
                 test: /\.(png|svg|jpe?g|gif)$/i,
                 exclude: /node_modules/,
                 loader: 'file-loader',
+                options: {
+                    name: '[path][name].[ext]',
+                },
             },
             {
                 test: /\.(js|jsx)$/,
@@ -35,4 +39,13 @@ module.exports = {
             }
         ]
     },
+    plugins: [
+        new webpack.ContextReplacementPlugin(
+            /\/package-name\//,
+            (data) => {
+                data.dependencies.forEach((item) => delete item.critical);
+                return data;
+            },
+        ),
+    ]
 };

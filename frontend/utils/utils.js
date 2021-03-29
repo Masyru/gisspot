@@ -1,4 +1,5 @@
 export const startYear = 2000;
+export const oneDay = 86400;
 
 export function generateDateObject() {
     const currentDate = new Date();
