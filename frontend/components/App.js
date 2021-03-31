@@ -1,7 +1,15 @@
 import React from "react";
 import "../Cesium/Main";
+import { Toolbar } from "./Toolbar";
+import { Timeline } from "./Timeline";
 
 export const App = () => {
-    let app = <div>Hello, Node!</div>;
+    // App menu
+    let app =
+        <>
+            <Toolbar />
+            <Timeline />
+        </>;
+
     return(app);
 };
