@@ -5,7 +5,7 @@ import "./Toolbar.css";
 function Button(props){
     const butt =
         <button type={'button'} title={props.title} onClick={props.setType} disabled={props.active} >
-                <img src={`../static/cursors/${props.cursor}.svg`} alt="" width={props.width} height={props.height}/>
+                <img src={`/static/cursors/${props.cursor}.svg`} alt="" width={props.width} height={props.height}/>
         </button>;
 
     return butt;

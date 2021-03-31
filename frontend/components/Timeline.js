@@ -1,21 +1,66 @@
-import React, { useState } from "react";
-import "./Timeline.css";
-import { generateDateObject } from "../utils/utils";
+import React, { useState, useEffect, useLayoutEffect } from "react";
+import { generateDateObject, startYear, oneDay } from "../utils/utils";
 
-export const Card = (props) => {
-    return(<div>card</div>)
-}
+const Preview = props => {
 
+    const preview =
+        <div className="photo-container-preview">
+            {
+                props.img.length && props.img
+                    .map((item, index) => <div style={{
+                        backgroundImage: `url('${item}')`,
+                        backgroundPosition: 'center center',
+                        backgroundSize: 'cover',
+                    }} key={index} className={'item'}/>)
+            }
+        </div>;
 
-export const Timeline = (props) => {
+    const card =
+        <div className="card__item">
+            {
+                typeof(props.img) !== "undefined" && props.img != null ? preview : null
+            }
+            <div className="describe">
+                {props.date}
+            </div>
+        </div>;
 
-    console.log(generateDateObject())
+    return(card)
+};
+
+const Line = props => {
+    let line = null;
+
+    switch (props.type) {
+        case 1:
+            line =
+                <>
+
+                </>;
+            break;
+        case 2:
+            break;
+    }
+    return(line);
+};
+
+export const Timeline = props => {
+
+    const [currentDate, setCurrentDate] = useState(new Date());
+    const data = generateDateObject();
+    const [currentData, setCurrentData] = useState(data[currentDate.getFullYear()][currentDate.getMonth()][currentDate.getDay()]);
+
 
     let timeline =
         <div className={"timeline"}>
-            Timeline
+            <div className="left__arrow">
+            </div>
+            <div className="timeline__current__data">
+                <Line />
+            </div>
+            <div className="right__arrow">
+            </div>
         </div>;
 
     return(timeline)
-}
-
+};
