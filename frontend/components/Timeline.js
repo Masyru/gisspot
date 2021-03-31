@@ -1,66 +1,112 @@
 import React, { useState, useEffect, useLayoutEffect } from "react";
+import "./Timeline.css";
 import { generateDateObject, startYear, oneDay } from "../utils/utils";
 
-const Preview = props => {
 
-    const preview =
-        <div className="photo-container-preview">
-            {
-                props.img.length && props.img
-                    .map((item, index) => <div style={{
-                        backgroundImage: `url('${item}')`,
-                        backgroundPosition: 'center center',
-                        backgroundSize: 'cover',
-                    }} key={index} className={'item'}/>)
-            }
-        </div>;
+function Card(props){
 
-    const card =
+    let card =
         <div className="card__item">
             {
-                typeof(props.img) !== "undefined" && props.img != null ? preview : null
+                props.showPreview && props.img.map((item, j) =>
+                    <div className="preview" key={j}>
+                        <img src={item} alt="..."/>
+                    </div>
+                )
             }
             <div className="describe">
-                {props.date}
+                {props.text}
             </div>
-        </div>;
+        </div>
 
-    return(card)
-};
+    return(card);
+}
 
-const Line = props => {
-    let line = null;
 
-    switch (props.type) {
-        case 1:
-            line =
-                <>
+function ConversionLine(props){
 
-                </>;
-            break;
-        case 2:
-            break;
+    console.log(props.children)
+    let conversionLine =
+        <div className="conversion">
+            {
+                props.children
+            }
+        </div>
+
+    return(conversionLine);
+}
+
+
+export default class Timeline extends React.Component{
+    constructor(props) {
+        super(props);
+        this.state = {
+            currentData: null,
+            nearbyToArea: 1,
+            dataShownAsArray: null,
+            type: true,
+            datetime: null,
+        }
+
+        this.changeType = this.changeType.bind(this);
+        this.setNearbyToArea = this.setNearbyToArea.bind(this);
     }
-    return(line);
-};
 
-export const Timeline = props => {
+    componentDidMount() {
+        let currentDatetime = new Date();
+        let object = generateDateObject();
 
-    const [currentDate, setCurrentDate] = useState(new Date());
-    const data = generateDateObject();
-    const [currentData, setCurrentData] = useState(data[currentDate.getFullYear()][currentDate.getMonth()][currentDate.getDay()]);
+        this.setState({
+            dataShownAsArray: object,
+            datetime: currentDatetime,
+            currentData: object[currentDatetime.getFullYear()]
+        })
+    }
 
+    setNearbyToArea(e){
+        e = e < 0 ? 0 : e;
+        e = e < 5 ? e : 4;
 
-    let timeline =
-        <div className={"timeline"}>
-            <div className="left__arrow">
-            </div>
-            <div className="timeline__current__data">
-                <Line />
-            </div>
-            <div className="right__arrow">
-            </div>
-        </div>;
+        this.setState({
+            nearbyToArea: e,
+        })
+    }
 
-    return(timeline)
+    changeType(){
+        this.setState({
+            type: !this.state.type,
+        })
+    }
+
+    render(){
+
+        let timeline =
+            <div className="timeline">
+                <div className="left__arrow">
+                    <img src={"/static/timeline/left-arrow.svg"} alt="влево"  width={'30px'} height={'30px'}/>
+                </div>
+                <div className="timeline__current__data">
+                    {
+                        this.state.type ?
+                            <ConversionLine
+                                data={this.state.dataShownAsArray}
+                                showPreview={false}
+                                currentArrayData={this.state.currentData}
+                                setNearbyToArea={this.setNearbyToArea}
+                            /> :
+                            <ConversionLine
+                                data={this.state.dataShownAsArray}
+                                showPreview={true}
+                                currentArrayData={this.state.currentData}
+                                setNearbyToArea={this.setNearbyToArea}
+                            />
+                    }
+                </div>
+                <div className="right__arrow">
+                    <img src={"/static/timeline/right-arrow.svg"} alt="вправо" width={'30px'} height={'30px'}/>
+                </div>
+            </div>;
+
+        return(timeline)
+    }
 };

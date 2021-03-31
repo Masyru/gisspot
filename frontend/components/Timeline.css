@@ -17,7 +17,7 @@
     height: 30px;
     position: relative;
     display: inline;
-    background-image: url("../timeline/left-arrow.svg");
+    background-image: url("../bundle/timeline/left-arrow.svg");
 }
 
 .timeline .right__arrow{
@@ -25,7 +25,7 @@
     height: 30px;
     position: relative;
     display: inline;
-    background-image: url("../timeline/right-arrow.svg");
+    background-image: url("../bundle/timeline/right-arrow.svg");
 }
 
 .timeline .timeline__current__data {
