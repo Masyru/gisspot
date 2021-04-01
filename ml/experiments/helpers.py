@@ -3,6 +3,7 @@ import torch
 import matplotlib as mpl
 from math import sin, cos, sqrt, atan2, radians
 from tqdm.notebook import tqdm
+import projmapper as pm
 
 b0_common_dt = np.dtype([
     ("formatType", np.uint8),
@@ -142,15 +143,23 @@ def colorFader(c1, c2, mix=0): #fade (linear interpolate) from color c1 (at mix=
 
 #   latitude - y
 #   longitude - x
-def calculate_distance(metadata, xy1, xy2):
+def calculate_distance(metadata, xy1, xy2, tpe='geo'):
     R = 6373.0
-    lat_res = metadata['b0_proj_common']['latRes']
-    lon_res = metadata['b0_proj_common']['lonRes']
     
-    lat1 = radians(xy1[0]*lat_res/3600)
-    lon1 = radians(xy1[1]*lon_res/3600)
-    lat2 = radians(xy2[0]*lat_res/3600)
-    lon2 = radians(xy2[1]*lon_res/3600)
+    if tpe == 'geo':
+        lat1 = radians(xy1[0])
+        lon1 = radians(xy1[1])
+        lat2 = radians(xy2[0])
+        lon2 = radians(xy2[1])
+    else:
+        
+        lat_res = metadata['b0_proj_common']['latRes']
+        lon_res = metadata['b0_proj_common']['lonRes']
+        
+        lat1 = radians(xy1[0]*lat_res/3600)
+        lon1 = radians(xy1[1]*lon_res/3600)
+        lat2 = radians(xy2[0]*lat_res/3600)
+        lon2 = radians(xy2[1]*lon_res/3600)
     
     dlon = lon2 - lon1
     dlat = lat2 - lat1
@@ -281,91 +290,66 @@ def find_best_match(img1,  # image where we gotta find our point
     scores = metric_fn(ref_image, imgs, coefs)
     if mode == 'max':
         l = torch.argmax(scores).item()
-        return idx[l], scores[l].item(), imgs[l].cpu().view(window_size[0], window_size[1]), yx[l]
+        return idx[l], scores[l].item()
     else:
         l = torch.argmin(scores).item()
-        return idx[l], scores[l].item(), imgs[l].cpu().view(window_size[0], window_size[1]), yx[l]
+        return idx[l], scores[l].item()
 
-def find_best_in_vicinity(vicinity, ref_image, yx_global, 
-                    window_size, metric_fn, # metric function wanna maximize: metric_fn(crop1, crop2, coefs)
-                    device, mode='max', coefs=None):
+def inference(img1,  # image where we gotta find our point
+              img2,  # image where we pined point
+              metadata,
+              dt,
+              point_coor, 
+              window_size, 
+              vicinity_size, # start point vicinity size
+              metric_fn, # metric function wanna maximize: metric_fn(crop1, crop2, coefs)
+              device,
+              mode='max',
+              tpe='pix',
+              coefs=None,
+              bef=None, # Backward Euclidean Filtering threshold
+              sf=None): # Score filtering
     
-    assert mode in ['max', 'min']
-    assert vicinity.shape[0] > window_size[0]
-    assert vicinity.shape[1] > window_size[1]
     
-    idx = []
-    yx = []
-    imgs = torch.zeros((
-        (vicinity.shape[0]-window_size[0])*(vicinity.shape[1]-window_size[1]),
-        window_size[1]*window_size[0]
-    )).to(device)
-    
-    c = 0
-  
-    for y in range(vicinity.shape[0]-window_size[0]):
-        for x in range(vicinity.shape[1]-window_size[1]):
-            tmp_y = y + yx_global[0]
-            tmp_x = x + yx_global[1]
-            idx.append([(2*tmp_y + window_size[0])//2, (2*tmp_x + window_size[1])//2])
-            yx.append([tmp_y, tmp_x])
-            img2_crop = vicinity[y:y+window_size[0], x:x+window_size[1]]
-            imgs[c] = img2_crop.reshape(-1)
-            c += 1
-    
-    scores = metric_fn(ref_image, imgs, coefs)
-    if mode == 'max':
-        l = torch.argmax(scores).item()
-        return idx[l], scores[l].item(), imgs[l].cpu().view(window_size[0], window_size[1]), yx[l]
-    else:
-        l = torch.argmin(scores).item()
-        return idx[l], scores[l].item(), imgs[l].cpu().view(window_size[0], window_size[1]), yx[l]
-    
-def filtering(matrix, window_size=(51, 51), perc=10):
-    mask = np.full(matrix.shape, False)
-    for y in range(matrix.shape[0]-window_size[0]):
-        for x in range(matrix.shape[1]-window_size[1]):
-            tmp = matrix[y:y+window_size[0], x:x+window_size[1]]
-            tmp1 = tmp[~np.isnan(tmp)]
-            
-            if len(tmp1) == 0:
-                continue
-            
-            mx = np.quantile(tmp1, 1-perc/100)
-            mn = np.quantile(tmp1, perc/100)
-            
-            mask[y:y+window_size[0], x:x+window_size[1]] += (tmp < mx)*(tmp>mn)
-    return mask > 0
+    if tpe == 'geo':
+        converter = ProjMapper(metadata['b0_proj_common']['projType']-1,
+                               metadata['b0_proj_common']['lon'],
+                               metadata['b0_proj_common']['lat'],
+                               metadata['b0_proj_common']['lonSize'],
+                               metadata['b0_proj_common']['latSize'],
+                               metadata['b0_proj_common']['lonRes']/3600.0,
+                               metadata['b0_proj_common']['latRes']/3600.0)
 
-def calculate_euclidean_loss(data1,
-                             data2,
-                             point_coors, 
-                             new_coors, 
-                             window_size, 
-                             vicinity_size, 
-                             metric_fn, 
-                             device,
-                             logging=False,
-                             mode='max',
-                             coefs=None):
+        point_coor = [converter.y(point_coor[0]), converter.x(point_coor[1])]
     
-    new_coors_rev = [[-1, -1]]*len(point_coors)
-    scores_rev = [0]*len(point_coors)
-
-    for i, point_coor in enumerate(tqdm(new_coors)):
-        try:
-            idx, score, _, _ = find_best_match(data2, data1, point_coor, 
-                                        window_size, vicinity_size, metric_fn, 
-                                        device,
-                                        mode='max', coefs=coefs)
-            new_coors_rev[i] = idx
-            scores_rev[i] = score
-        except:
-            continue
-
-    new_coors_rev = np.array(new_coors_rev)
-    scores_rev = np.array(scores_rev)
-    mask = new_coors_rev[new_coors_rev[:, 0] != -1] 
-    loss = np.sqrt(((new_coors_rev-point_coors)**2).sum(axis=1)[mask])/(vicinity_size[0]**2+vicinity_size[1]**2)**.5
+    idx, score = find_best_match(img1, img2, window_size, 
+                    vicinity_size, metric_fn, 
+                    device, mode, coefs)
     
-    return loss, new_coors_rev, mask
+    
+    if not bef is None:
+        idx_rev, score_rev = find_best_match(img2, img1, window_size, 
+                        vicinity_size, metric_fn, 
+                        device, mode, coefs)
+    
+        loss = ((idx_rev[0]-point_coor[0])**2+(idx_rev[1]-point_coor[1])**2)**.5
+        loss = loss/(vicinity_size[0]**2+vicinity_size[1]**2)**.5
+    
+    mask = True
+    if not sf is None:
+        mask = score > sf
+    if not bef is None or bef > 0:
+        mask = mask * (loss < bef)
+    
+    if tpe == 'geo':
+        idx = [converter.lat(idx[0]), converter.lon(idx[1])]
+        point_coor = [converter.lat(point_coor[0]), converter.lon(point_coor[1])]
+    
+    distance = calculate_distance(metadata, idx, point_coor, tpe=tpe)
+    velocity = distance/dt
+    
+    
+    if bef is None:
+        return idx, velocity, mask
+    elif bef == -1:
+        return idx, velocity, loss, mask

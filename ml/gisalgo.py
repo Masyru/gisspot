@@ -1,6 +1,9 @@
 import numpy as np
 import torch
+import matplotlib as mpl
 from math import sin, cos, sqrt, atan2, radians
+from tqdm.notebook import tqdm
+import projmapper as pm
 
 b0_common_dt = np.dtype([
     ("formatType", np.uint8),
@@ -116,6 +119,14 @@ def parse(fname):
     f.close()
     return b0, data
 
+def generate_points(img, x0, y0, dx, dy, step, window_size, nan_val=-100):  
+    points = []
+    for x in range(x0+window_size[1]//2, x0+dx-window_size[1]//2, step):
+        for y in range(y0+window_size[0]//2, y0+dy-window_size[0]//2, step):
+            if img[y, x] != nan_val:
+                points.append([y, x])
+    return points
+
 def numpy2torch(img1, img2):
     img1 = img1.astype(float)
     img1[img1 < 0] = -100
@@ -126,15 +137,23 @@ def numpy2torch(img1, img2):
 
 #   latitude - y
 #   longitude - x
-def calculate_distance(metadata, xy1, xy2):
+def calculate_distance(metadata, xy1, xy2, tpe='geo'):
     R = 6373.0
-    lat_res = metadata['b0_proj_common']['latRes']
-    lon_res = metadata['b0_proj_common']['lonRes']
     
-    lat1 = radians(xy1[0]*lat_res/3600)
-    lon1 = radians(xy1[1]*lon_res/3600)
-    lat2 = radians(xy2[0]*lat_res/3600)
-    lon2 = radians(xy2[1]*lon_res/3600)
+    if tpe == 'geo':
+        lat1 = radians(xy1[0])
+        lon1 = radians(xy1[1])
+        lat2 = radians(xy2[0])
+        lon2 = radians(xy2[1])
+    else:
+        
+        lat_res = metadata['b0_proj_common']['latRes']
+        lon_res = metadata['b0_proj_common']['lonRes']
+        
+        lat1 = radians(xy1[0]*lat_res/3600)
+        lon1 = radians(xy1[1]*lon_res/3600)
+        lat2 = radians(xy2[0]*lat_res/3600)
+        lon2 = radians(xy2[1]*lon_res/3600)
     
     dlon = lon2 - lon1
     dlat = lat2 - lat1
@@ -145,6 +164,7 @@ def calculate_distance(metadata, xy1, xy2):
     distance = R * c * 1000
     return distance
     
+
 def ssim(x, y, coefs):
     if coefs is None:
         alpha = 1
@@ -264,7 +284,63 @@ def find_best_match(img1,  # image where we gotta find our point
     scores = metric_fn(ref_image, imgs, coefs)
     if mode == 'max':
         l = torch.argmax(scores).item()
-        return idx[l], scores[l].item(), imgs[l].cpu().view(window_size[0], window_size[1]), yx[l]
+        return idx[l], scores[l].item()
     else:
         l = torch.argmin(scores).item()
-        return idx[l], scores[l].item(), imgs[l].cpu().view(window_size[0], window_size[1]), yx[l]
+        return idx[l], scores[l].item()
+
+def inference(img1,  # image where we gotta find our point
+              img2,  # image where we pined point
+              metadata,
+              dt,
+              point_coor, 
+              window_size, 
+              vicinity_size, # start point vicinity size
+              metric_fn, # metric function wanna maximize: metric_fn(crop1, crop2, coefs)
+              device,
+              mode='max',
+              tpe='pix',
+              coefs=None,
+              bef=None, # Backward Euclidean Filtering threshold
+              sf=None): # Score filtering
+    
+    
+    if tpe == 'geo':
+        converter = ProjMapper(metadata['b0_proj_common']['projType']-1,
+                               metadata['b0_proj_common']['lon'],
+                               metadata['b0_proj_common']['lat'],
+                               metadata['b0_proj_common']['lonSize'],
+                               metadata['b0_proj_common']['latSize'],
+                               metadata['b0_proj_common']['lonRes']/3600.0,
+                               metadata['b0_proj_common']['latRes']/3600.0)
+
+        point_coor = [converter.y(point_coor[0]), converter.x(point_coor[1])]
+    
+    idx, score = find_best_match(img1, img2, window_size, 
+                    vicinity_size, metric_fn, 
+                    device, mode, coefs)
+    
+    
+    if not bef is None:
+        idx_rev, score_rev = find_best_match(img2, img1, window_size, 
+                        vicinity_size, metric_fn, 
+                        device, mode, coefs)
+    
+        loss = ((idx_rev[0]-point_coor[0])**2+(idx_rev[1]-point_coor[1])**2)**.5
+        loss = loss/(vicinity_size[0]**2+vicinity_size[1]**2)**.5
+    
+    mask = True
+    if not sf is None:
+        mask = score > sf
+    if not bef is None:
+        mask = mask * (loss < bef)
+    
+    if tpe == 'geo':
+        idx = [converter.lat(idx[0]), converter.lon(idx[1])]
+        point_coor = [converter.lat(point_coor[0]), converter.lon(point_coor[1])]
+    
+    distance = calculate_distance(metadata, idx, point_coor, tpe=tpe)
+    velocity = distance/dt
+    
+    
+    return idx, velocity, mask
