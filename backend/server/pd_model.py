@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 
-__all__ = ["StandardModel", "ProcessingData"]
+__all__ = ["StandardModel", "ProcessingData", "PreviewRequestData", "PreviewData"]
 
 
 class StandardModel(BaseModel):
@@ -16,3 +16,19 @@ class ProcessingData(BaseModel):
     hex: str
     speed: float
     error_message: str
+
+
+class Point(BaseModel):
+    lon: float
+    lat: float
+
+
+class PreviewRequestData(BaseModel):
+    datetime: int
+    bbox: list[Point, Point]
+
+
+class PreviewData(BaseModel):
+    img: str
+    datetime: int
+    bbox: list[Point, Point]
