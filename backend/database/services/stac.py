@@ -96,5 +96,10 @@ def path_gen(pro_path: Optional[str],
     if file_extension is None:
         file_extension = dir_name
     if filename is None:
-        filename = pro_path.split("/")[-1].rstrip(".pro")
-    return path.join(pro_path[:-2], dir_name, filename + "." + file_extension)
+        data_dir, filename = path.split(pro_path)
+    else:
+        data_dir, _ = path.split(pro_path)
+
+    data_dir = path.join(data_dir, "..", "..")
+    filename = filename.rstrip(".pro")
+    return path.normpath(path.join(data_dir, dir_name, filename + "." + file_extension))

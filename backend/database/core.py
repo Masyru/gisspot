@@ -1,17 +1,13 @@
 from pystac import Asset, Catalog, Collection, CatalogType, read_file, \
     Extent, SpatialExtent, TemporalExtent, Item
 from services import parse
-import os
 from datetime import datetime
-from pathlib import Path
 from typing import List, Optional
 
-from backend.database.services import stac, normalize_stac_path, filter_catalog, path_gen
-
-BASE_DIR = Path(__file__).resolve().parent.parent
+from backend.database.services import stac, normalize_stac_path, filter_catalog
 
 
-class GisSpotStac:
+class GisStac:
     def __init__(self, old_catalog_path: str = None, new_path: str = None) -> None:
         if old_catalog_path is None:
             if new_path is None:
@@ -43,15 +39,16 @@ class GisSpotStac:
                  path_img: Optional[str]) -> None:
         assert path_pro.endswith(".pro")
         file_name = path_pro.split("\\")[-1].rstrip(".pro")
-
+        print(file_name)
         b0, data = parse(path_pro)
         item: Item = stac.create_item(i_id=file_name, metadata=b0)
-        print(item.get_self_href())
         assets: list[Asset] = [
-            Asset(href=path_pro, media_type="pro"),
-            Asset(href=path_tiff, media_type="geotiff"),
-            Asset(href=path_img, media_type="img")
+            Asset(href=path_pro, media_type="pro")
         ]
+        if path_tiff is not None:
+            assets.append(Asset(href=path_tiff, media_type="geotiff"))
+        if path_img is not None:
+            assets.append(Asset(href=path_img, media_type="img"))
         stac.add_assets(item, assets)
 
         catalog = self.root_catalog.get_child(str(b0["b0_common"]["satId"][0]))

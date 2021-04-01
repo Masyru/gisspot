@@ -4,6 +4,8 @@ from rq import Worker, Queue, Connection
 from backend.worker.core import conn
 from backend.worker.settings import WORKER_TYPES
 
+from ml.gisalgo import parse, numpy2torch, find_best_match, calculate_distance
+
 
 def create_worker(queues):
     assert all(map(lambda key: key in WORKER_TYPES, queues))
@@ -14,13 +16,12 @@ def create_worker(queues):
 
 
 def get_file(url_pro: Optional[str]) -> bytes:
-    pass
+    return open(url_pro, "rb").read()  # TODO: Поддержка web запросов
 
 
 def worker_processing(url_pro_1: Optional[str],
                       url_pro_2: Optional[str],
                       point: Tuple[float, float],
-                      ws_id: Optional[int],
                       window_size: Tuple[float, float],
                       vicinity_size: Tuple[float, float]) -> dict:
     file_1 = get_file(url_pro_1)
