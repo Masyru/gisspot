@@ -1,10 +1,10 @@
 from datetime import datetime
 from typing import Optional, List, Dict
 
-from backend.server.pd_model import *
-from backend.server.settings import REQUEST_TYPES, DATABASE_URL
+from .pd_model import *
+from .settings import REQUEST_TYPES, DATABASE_URL
 
-from backend.database.main import gis_stac
+from ..database.main import gis_stac
 
 __all__ = ["main_processing"]
 

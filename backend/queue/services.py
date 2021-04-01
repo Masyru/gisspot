@@ -3,7 +3,7 @@ from rq.job import Job
 from typing import Optional, List
 from main import queues
 
-from backend.queue.settings import TTL, RESULT_TTL, FAILURE_TTL
+from .settings import TTL, RESULT_TTL, FAILURE_TTL
 
 
 def add_task(func, args: Optional[tuple],

@@ -1,10 +1,9 @@
+# gis_stac = GisStac(STAC_PATH)
 import os
 
-from backend.database.core import GisStac
-from backend.database.settings import STAC_PATH, FILES_PATH
-from backend.database.services import path_gen, normalize_stac_path
-
-# gis_stac = GisStac(STAC_PATH)
+from .core import GisStac
+from .settings import STAC_PATH, FILES_PATH
+from .services import path_gen, normalize_stac_path
 
 if __name__ == '__main__':
     gis_stac = GisStac(normalize_stac_path(STAC_PATH))

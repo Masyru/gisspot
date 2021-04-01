@@ -2,8 +2,8 @@ from typing import Optional, Tuple
 from rq import Worker, Queue, Connection
 from requests import post
 
-from backend.worker.core import conn
-from backend.worker.settings import WORKER_TYPES, QUEUE_URL
+from .core import conn
+from .settings import WORKER_TYPES, QUEUE_URL
 
 from ml.gisalgo import parse, numpy2torch, find_best_match, calculate_distance
 
