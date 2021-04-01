@@ -1,8 +1,9 @@
 from typing import Optional, Tuple
 from rq import Worker, Queue, Connection
+from requests import post
 
 from backend.worker.core import conn
-from backend.worker.settings import WORKER_TYPES
+from backend.worker.settings import WORKER_TYPES, QUEUE_URL
 
 from ml.gisalgo import parse, numpy2torch, find_best_match, calculate_distance
 
@@ -19,19 +20,17 @@ def get_file(url_pro: Optional[str]) -> bytes:
     return open(url_pro, "rb").read()  # TODO: Поддержка web запросов
 
 
-def worker_processing(url_pro_1: Optional[str],
-                      url_pro_2: Optional[str],
-                      point: Tuple[float, float],
-                      window_size: Tuple[float, float],
-                      vicinity_size: Tuple[float, float]) -> dict:
-    file_1 = get_file(url_pro_1)
-    file_2 = get_file(url_pro_2)
-    b0_file_1, data_file_1 = parse(file_1)
-    b0_file_2, data_file_2 = parse(file_2)
-
+def worker_processing(b0_file_1,
+                      data_file_1,
+                      data_file_2,
+                      point: Tuple[float],
+                      window_size: Tuple[float],
+                      vicinity_size: Tuple[float]) -> dict:
     file_1, file_2 = numpy2torch(data_file_1, data_file_2)
     try:
-        pos, score, _, _ = find_best_match(file_1, file_2, (point[1], point[0]), window_size, vicinity_size)
+        pos, score, _, _ = find_best_match(file_1, file_2,
+                                           (point[1], point[0]),
+                                           window_size, vicinity_size, "ssim", "ssim")
         speed = calculate_distance(b0_file_1, point, pos)
         return {"x1": point[1], "y1": point[0],
                 "x2": pos[1], "y2": pos[0],
@@ -42,3 +41,20 @@ def worker_processing(url_pro_1: Optional[str],
                 "x2": 0, "y2": 0,
                 "speed": 0,
                 "error_message": e}
+
+
+def add_worker(*params, **kwargs) -> None:
+    post(QUEUE_URL, json={"params": params, "kwargs": kwargs})
+
+
+def big_worker(url_pro_1: Optional[str],
+               url_pro_2: Optional[str],
+               points: Tuple[Tuple[float]],
+               window_size: Tuple[float],
+               vicinity_size: Tuple[float]) -> None:
+    file_1 = get_file(url_pro_1)
+    file_2 = get_file(url_pro_2)
+    b0_file_1, data_file_1 = parse(file_1)
+    b0_file_2, data_file_2 = parse(file_2)
+    for point in points:
+        add_worker(b0_file_1, data_file_1, data_file_2, point, window_size, vicinity_size)
