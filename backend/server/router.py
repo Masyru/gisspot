@@ -2,6 +2,7 @@ from fastapi import Request, APIRouter, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
+from backend.server.services import *
 from backend.server.settings import TEMPLATES_DIR
 from backend.server.ws import ConnectionManager, processing_user
 from backend.server.pd_model import *
@@ -29,7 +30,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
 
 @router.post("/processing/{ws_id}")
-async def processing_endpoint(data: ProcessingData, ws_id: int):
+async def processing_endpoint(data: StandardModel, ws_id: int):
     ws = await manager.get_ws(ws_id)
-    await manager.send_data(response_dict={"type": "Point", "data": data},
+    await manager.send_data(response_dict=main_processing(data),
                             websocket=ws)

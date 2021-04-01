@@ -5,3 +5,6 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 TEMPLATES_DIR = BASE_DIR / "build"
 STATIC_DIR = BASE_DIR / "build/static"
 STATIC_URL = "/static/"
+
+# Request/Response types
+REQUEST_TYPES = ("points",)
