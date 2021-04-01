@@ -3,8 +3,10 @@ from fastapi.staticfiles import StaticFiles
 
 from os import system
 
-from backend.server.settings import STATIC_DIR, STATIC_URL
-from backend.server.router import router
+from settings import STATIC_DIR, STATIC_URL
+from router import router
+# from backend.server.settings import STATIC_DIR, STATIC_URL
+# from backend.server.router import router
 
 app = FastAPI()
 

@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import "./Toolbar.css";
 
 
-function Button(props){
+const Button = props => {
     const butt =
         <button type={'button'} title={props.title} onClick={props.setType} disabled={props.active} >
                 <img src={`/static/cursors/${props.cursor}.svg`} alt="" width={props.width} height={props.height}/>
@@ -11,7 +11,7 @@ function Button(props){
     return butt;
 }
 
-export const Toolbar = () => {
+const Toolbar = props => {
     // TODO need to indicate typeOfCursor and turn another mode for editting the map
     const [typeOfCursor, setTypeOfCursor] = useState(0);
 
@@ -30,3 +30,5 @@ export const Toolbar = () => {
 
     return(toolbar)
 }
+
+export default Toolbar;
