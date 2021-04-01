@@ -2,6 +2,7 @@ import numpy as np
 import torch
 import matplotlib as mpl
 from math import sin, cos, sqrt, atan2, radians
+from tqdm.notebook import tqdm
 
 b0_common_dt = np.dtype([
     ("formatType", np.uint8),
@@ -335,3 +336,36 @@ def filtering(matrix, window_size=(51, 51), perc=10):
             
             mask[y:y+window_size[0], x:x+window_size[1]] += (tmp < mx)*(tmp>mn)
     return mask > 0
+
+def calculate_euclidean_loss(data1,
+                             data2,
+                             point_coors, 
+                             new_coors, 
+                             window_size, 
+                             vicinity_size, 
+                             metric_fn, 
+                             device,
+                             logging=False,
+                             mode='max',
+                             coefs=None):
+    
+    new_coors_rev = [[-1, -1]]*len(point_coors)
+    scores_rev = [0]*len(point_coors)
+
+    for i, point_coor in enumerate(tqdm(new_coors)):
+        try:
+            idx, score, _, _ = find_best_match(data2, data1, point_coor, 
+                                        window_size, vicinity_size, metric_fn, 
+                                        device,
+                                        mode='max', coefs=coefs)
+            new_coors_rev[i] = idx
+            scores_rev[i] = score
+        except:
+            continue
+
+    new_coors_rev = np.array(new_coors_rev)
+    scores_rev = np.array(scores_rev)
+    mask = new_coors_rev[new_coors_rev[:, 0] != -1] 
+    loss = np.sqrt(((new_coors_rev-point_coors)**2).sum(axis=1)[mask])/(vicinity_size[0]**2+vicinity_size[1]**2)**.5
+    
+    return loss, new_coors_rev, mask
