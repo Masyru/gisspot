@@ -1,7 +1,7 @@
 from rq.command import send_stop_job_command
 from rq.job import Job
 from typing import Optional, List
-from main import queues
+from core import queues
 
 from .settings import TTL, RESULT_TTL, FAILURE_TTL
 
