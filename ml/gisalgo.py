@@ -396,7 +396,7 @@ def inference(img1: torch.FloatTensor,
     
     # If geo used then init ProjMapper as converter and convert coordinates
     if tpe == 'geo':
-        converter = ProjMapper(metadata['b0_proj_common']['projType']-1,
+        converter = pm.ProjMapper(metadata['b0_proj_common']['projType']-1,
                                metadata['b0_proj_common']['lon'],
                                metadata['b0_proj_common']['lat'],
                                metadata['b0_proj_common']['lonSize'],
