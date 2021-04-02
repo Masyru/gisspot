@@ -4,7 +4,8 @@ from typing import Optional, List, Dict
 from .pd_model import *
 from .settings import REQUEST_TYPES, DATABASE_URL
 
-from ..database.main import gis_stac
+from ..database.core import gis_stac
+from ..queue.services import add_task
 
 __all__ = ["main_processing"]
 
@@ -41,7 +42,7 @@ def preview_interval(timestamp: int) -> List[datetime]:
             datetime.fromtimestamp(timestamp + 24 * 60 * 60)]
 
 
-def preview_processing(data: PreviewData) -> Dict[str, list[PreviewData]]:
+def preview_processing(data: PreviewData) -> Dict[str, List[PreviewData]]:
     items = get_items(preview_interval(data.datetime),
                       [data.bbox[0].lat, data.bbox[0].lon,
                        data.bbox[1].lat, data.bbox[1].lon])
@@ -53,3 +54,27 @@ def preview_processing(data: PreviewData) -> Dict[str, list[PreviewData]]:
                 break
 
     return {"imgs": res}
+
+
+def get_item_url(iid: Optional[str]) -> str:
+    item = gis_stac.root_catalog.get_child(iid, recursive=True)
+    return item.href
+
+
+def vector_processing(data: VectorsRequest) -> None:
+    files = (get_item_url(data.ids[0]), get_item_url(data.ids[1]))
+    params = [files[0], files[1], data.points, data.window_size, data.vicinity_size]
+    add_to_queue(ws_id=1, task_type="high", *params)
+
+
+def add_to_queue(ws_id: Optional[int] = None,
+                 task_type: Optional[str] = "high",
+                 *params, **kwargs) -> None:
+    request_data = {"task_type": task_type,
+                    "params": params,
+                    "kwargs": kwargs}
+    if ws_id is not None:
+        request_data["ws_id"] = ws_id
+
+    # Либо вызов методы (модульная архитектурка)
+    # Либо запрос к серверу очереди (микросервесы)

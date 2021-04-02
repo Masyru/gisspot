@@ -43,15 +43,16 @@ def worker_processing(b0_file_1,
                 "error_message": e}
 
 
-def add_worker(*params, **kwargs) -> None:
-    post(QUEUE_URL, json={"params": params, "kwargs": kwargs})
+def add_worker(task_type: Optional[str] = "low", *params, **kwargs) -> None:
+    post(QUEUE_URL, json={"params": params, "kwargs": kwargs,
+                          "task_type": task_type})
 
 
 def big_worker(url_pro_1: Optional[str],
                url_pro_2: Optional[str],
                points: Tuple[Tuple[float]],
-               window_size: Tuple[float],
-               vicinity_size: Tuple[float]) -> None:
+               window_size: Tuple[int],
+               vicinity_size: Tuple[int]) -> None:
     file_1 = get_file(url_pro_1)
     file_2 = get_file(url_pro_2)
     b0_file_1, data_file_1 = parse(file_1)
