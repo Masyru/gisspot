@@ -24,11 +24,3 @@ export function generateDateObject() {
     }
     return (yearData);
 }
-
-
-export const initNewAPI = () => {
-    Date.prototype.monthDays = () => {
-        let d= new Date(this.getFullYear(), this.getMonth()+1, 0);
-        return d.getDate();
-    }
-}
