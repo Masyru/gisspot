@@ -1,6 +1,6 @@
 import React from "react";
-import { Toolbar } from "./Toolbar";
-import { Timeline } from "./Timeline";
+import Toolbar from "./Toolbar";
+import Timeline from "./Timeline";
 
 export const App = () => {
     // App menu
