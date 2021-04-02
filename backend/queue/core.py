@@ -8,3 +8,5 @@ __all__ = ["queues"]
 redis_conn = from_url(REDIS_URL)
 queues = {"default": Queue("default", connection=redis_conn),
           "high": Queue("high", connection=redis_conn)}
+tasks = {"default": ".worker_processing",
+         "high": ".big_worker"}

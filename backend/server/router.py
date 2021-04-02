@@ -2,14 +2,13 @@ from fastapi import Request, APIRouter, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 
-from .services import *
+from .core import manager
 from .settings import TEMPLATES_DIR
 from .ws import *
 from .pd_model import *
 
 router = APIRouter()
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
-manager = ConnectionManager()
 
 
 @router.get("/", response_class=HTMLResponse)

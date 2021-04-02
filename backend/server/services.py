@@ -3,6 +3,7 @@ from typing import Optional, List, Dict
 
 from .pd_model import *
 
+from ..queue.services import add_task, stop_all_ws_task
 from ..database.main import gis_stac
 
 __all__ = ["preview_processing", "vector_processing", "refuse_processing"]
@@ -29,7 +30,9 @@ def preview_processing(data: PreviewData) -> Dict[str, List[PreviewData]]:
     for item in items:
         for asset in item["assets"]:
             if asset["type"] == "img":
-                res.append(PreviewData(img=asset["href"], datetime=item["properties"]["datetime"], bbox=item["bbox"]))
+                res.append(PreviewData(img=asset["href"],
+                                       datetime=item["properties"]["datetime"],
+                                       bbox=item["bbox"]))
                 break
 
     return {"imgs": res}
@@ -47,21 +50,21 @@ def vector_processing(ws_id: Optional[str],
     add_to_queue(ws_id=ws_id, task_type="high", *params)
 
 
-def add_to_queue(ws_id: Optional[str] = None,
+def add_to_queue(ws_id: Optional[str],
                  task_type: Optional[str] = "high",
                  *params, **kwargs) -> None:
-    request_data = {"task_type": task_type,
-                    "params": params,
-                    "kwargs": kwargs}
-    if ws_id is not None:
-        request_data["ws_id"] = ws_id
-
-    # Либо вызов методы (модульная архитектурка)
-    # Либо запрос к серверу очереди (микросервесы)
+    # request_data = {"task_type": task_type,
+    #                 "params": params,
+    #                 "kwargs": kwargs}
+    # if ws_id is not None:
+    #     request_data["ws_id"] = ws_id
+    add_task(ws_id=ws_id, args=params,
+             kwargs=kwargs, task_type=task_type)
+    # TODO: Microservices
 
 
 def delete_work_to_queue(ws_id: Optional[str]) -> None:
-    pass
+    stop_all_ws_task(ws_id)  # TODO: Microservices
 
 
 def refuse_processing(ws_id: Optional[str]) -> None:

@@ -3,10 +3,9 @@ from fastapi.staticfiles import StaticFiles
 
 from os import system
 
+from .core import app
 from .settings import STATIC_DIR, STATIC_URL
 from .router import router
-
-app = FastAPI()
 
 app.mount(STATIC_URL, StaticFiles(directory=STATIC_DIR), name="static")
 app.include_router(router, tags=["core"])
