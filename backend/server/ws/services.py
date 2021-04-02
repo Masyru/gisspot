@@ -1,8 +1,31 @@
-WS_TYPES = {"processing": lambda data: data}
+from typing import Optional
+
+from ..services import *
+from ..pd_model import *
+from ..settings import REQUEST_TYPES
+
+__all__ = ["user_request"]
 
 
-def processing_user(ws_dict: dict) -> None:
-    assert "type" in ws_dict and "data" in ws_dict
-    assert ws_dict["type"] in WS_TYPES.keys()
+def user_request(ws_id: Optional[str], data: Optional[StandardModel]) \
+        -> Optional[StandardModel]:
+    response = StandardModel(type=data.type, data={})
+    try:
+        assert data.type in REQUEST_TYPES
 
-    WS_TYPES[ws_dict["type"]](ws_dict["data"])
+        if data.type == "fetchPreview":
+            response.data = preview_processing(PreviewData(**data.data))
+        elif data.type == "getVectors":
+            vector_processing(ws_id, VectorsRequest(**data.data))
+
+        elif data.type == "refuseVectors":
+            pass
+
+    except AttributeError:
+        response.data["status"] = False
+        response.data["message"] = "Type is not corrected"
+    else:
+        if response.data == {}:
+            response.data["status"] = True
+            response.data["message"] = "Processing"
+    return response

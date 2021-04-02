@@ -4,7 +4,7 @@ from fastapi.templating import Jinja2Templates
 
 from .services import *
 from .settings import TEMPLATES_DIR
-from .ws import ConnectionManager, processing_user
+from .ws import *
 from .pd_model import *
 
 router = APIRouter()
@@ -19,18 +19,18 @@ async def get(request: Request):
 
 @router.websocket("/ws/")
 async def websocket_endpoint(websocket: WebSocket):
-    await manager.connect(websocket)
+    ws_id: str = await manager.connect(websocket)
     try:
         while True:
             data: dict = await websocket.receive_json()
-            processing_user(data)
+            user_request(ws_id, StandardModel(**data))
 
     except WebSocketDisconnect:
-        manager.disconnect(websocket)
+        manager.disconnect(ws_id)
 
 
-@router.post("/processing/{ws_id}")
-async def processing_endpoint(data: StandardModel, ws_id: int):
-    ws = await manager.get_ws(ws_id)
-    await manager.send_data(response_dict=main_processing(data),
-                            websocket=ws)
+# @router.post("/processing/{ws_id}")
+# async def processing_endpoint(data: StandardModel, ws_id: int):
+#     ws = await manager.get_ws(ws_id)
+#     await manager.send_data(response_dict=,
+#                             websocket=ws)
