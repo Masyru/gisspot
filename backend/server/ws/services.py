@@ -19,7 +19,7 @@ def user_request(ws_id: Optional[str], data: Optional[StandardModel]) \
             vector_processing(ws_id, VectorsRequest(**data.data))
 
         elif data.type == "refuseVectors":
-            pass
+            refuse_processing(ws_id)
 
     except AttributeError:
         response.data["status"] = False

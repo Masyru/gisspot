@@ -5,7 +5,7 @@ from .pd_model import *
 
 from ..database.main import gis_stac
 
-__all__ = ["preview_processing", "vector_processing"]
+__all__ = ["preview_processing", "vector_processing", "refuse_processing"]
 
 
 def get_items(time_interval: List[datetime], bbox: List[float]) -> List[dict]:
@@ -58,3 +58,11 @@ def add_to_queue(ws_id: Optional[str] = None,
 
     # Либо вызов методы (модульная архитектурка)
     # Либо запрос к серверу очереди (микросервесы)
+
+
+def delete_work_to_queue(ws_id: Optional[str]) -> None:
+    pass
+
+
+def refuse_processing(ws_id: Optional[str]) -> None:
+    delete_work_to_queue(ws_id)
