@@ -14,6 +14,8 @@ def add_task(args: Optional[tuple],
         -> None:
     assert task_type in queues.keys()
     meta = {"ws_id": ws_id}
+    # if task_type == "default":  # TODO : Добавить worker, который будет возращать ответ серверу
+        # queues[task_type].enqueue("")
     queues[task_type].enqueue_call(func=tasks[task_type], args=args,
                                    kwargs=kwargs, meta=meta,
                                    result_ttl=RESULT_TTL,

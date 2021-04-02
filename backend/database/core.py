@@ -4,7 +4,7 @@ from services import parse
 from datetime import datetime
 from typing import List, Optional
 
-from .services import stac, normalize_stac_path, filter_catalog
+from backend.database.services import stac, normalize_stac_path, filter_catalog
 
 
 class GisStac:
@@ -70,9 +70,6 @@ class GisStac:
 
     def save(self) -> None:
         self.root_catalog.normalize_hrefs(self.path)
-        for ch in self.root_catalog.get_children():
-            ch: Collection
-            print(ch.get_links())
         self.root_catalog.save(catalog_type=CatalogType.SELF_CONTAINED)
 
     def filter(self, time_intervals: List[list[datetime, datetime]],

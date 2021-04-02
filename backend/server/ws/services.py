@@ -1,9 +1,9 @@
 from typing import Optional
 
-from ..services import *
-from ..pd_model import *
-from ..settings import REQUEST_TYPES
-from ..router import manager
+from backend.server.services import *
+from backend.server.pd_model import *
+from backend.server.settings import REQUEST_TYPES
+from backend.server.router import manager
 
 __all__ = ["user_request", "service_request"]
 

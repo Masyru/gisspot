@@ -1,10 +1,10 @@
 from datetime import datetime
 from typing import Optional, List, Dict
 
-from .pd_model import *
+from backend.server.pd_model import *
 
-from ..queue.services import add_task, stop_all_ws_task
-from ..database.main import gis_stac
+from backend.queue.services import add_task, stop_all_ws_task
+from backend.database.main import gis_stac
 
 __all__ = ["preview_processing", "vector_processing", "refuse_processing"]
 
@@ -35,6 +35,8 @@ def preview_processing(data: PreviewData) -> Dict[str, List[PreviewData]]:
                                        bbox=item["bbox"]))
                 break
 
+    res.sort(key=lambda el: el.datetime)
+
     return {"imgs": res}
 
 
@@ -47,7 +49,7 @@ def vector_processing(ws_id: Optional[str],
                       data: Optional[VectorsRequest]) -> None:
     files = (get_item_url(data.ids[0]), get_item_url(data.ids[1]))
     params = [files[0], files[1], data.points, data.window_size, data.vicinity_size]
-    add_to_queue(ws_id=ws_id, task_type="high", *params)
+    add_to_queue(ws_id=ws_id, *params)
 
 
 def add_to_queue(ws_id: Optional[str],
