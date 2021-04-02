@@ -1,5 +1,5 @@
-.toolbar {
-    width: 120px;
+.toolbar, .fix__region__btn {
+    min-width: 45px;
     height: 40px;
     position: absolute;
     right: 1%;
@@ -13,13 +13,13 @@
     border-radius: 5px;
 }
 
-.toolbar button {
+.toolbar button, .fix__region__btn button {
     outline: none;
     width: 35px;
     height: 30px;
     border-radius: 3px;
     border: transparent 1px solid;
-    margin: 0;
+    margin: 0 6px;
     padding: 1px 5px;
     display: flex;
     justify-content: center;
@@ -27,7 +27,7 @@
     transition: all 100ms ease-in;
 }
 
-.toolbar button:hover {
+.toolbar button:hover, .fix__region__btn button:hover {
     background-color: #cbcbcb;
 }
 
@@ -36,3 +36,5 @@
     color: rgba(16, 16, 16, 0.3);
     background-color: rgba(239, 239, 239, 0.3);
 }
+
+

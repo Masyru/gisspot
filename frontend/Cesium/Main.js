@@ -50,3 +50,5 @@ viewer.camera.flyTo({
 
 getPointCoords(viewer);
 flyToCurrentPos(viewer);
+
+export const getViewer = () => viewer;

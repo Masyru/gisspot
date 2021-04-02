@@ -21,6 +21,8 @@ export function getPointCoords(viewer){
 }
 
 
+
+
 // Fly to current location
 // TODO Need to fix
 export function flyToCurrentPos(viewer){

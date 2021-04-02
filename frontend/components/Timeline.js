@@ -38,9 +38,14 @@ function ConversionLine(props){
                             text={item}
                             showPreview={props.showPreview}
                             img={props.currentArrayData[k]}
-                            changeData={ () => {
-                                props.setNearbyToArea(props.nearbyToArea + 1)
-                            }}
+                            changeData={ props.nearbyToArea < 3 ?
+                                () => { props.setNearbyToArea(props.nearbyToArea + 1)} :
+                                () => {
+                                    console.log('Change to second page chooser');
+                                    props.setPhoto(item)
+                                    props.nextPage();
+                                }
+                            }
                         />
                     )
             }
@@ -51,6 +56,13 @@ function ConversionLine(props){
 
 
 export default class Timeline extends React.Component{
+    // refDatetime - ссылки на год, месяц и день
+    // timeMinus - в области работы есть дельта в секундах, которая используется для вычитания и получения новой даты
+    // currentData - дата, которая хранится в объекте по индексу года, месяца или дня
+    // dataShownAsArray - массив индексов, ссылок на дату
+    // type - переменная для понимания нужно ли рендерить preview
+    // datetime - дата по которой сейчас фильтруем снимки
+
     constructor(props) {
         super(props);
         this.state = {
@@ -69,6 +81,7 @@ export default class Timeline extends React.Component{
 
         this.changeType = this.changeType.bind(this);
         this.setNearbyToArea = this.setNearbyToArea.bind(this);
+        this.changeDatetime = this.changeDatetime.bind(this);
     }
 
     componentWillMount() {
@@ -91,26 +104,23 @@ export default class Timeline extends React.Component{
         // this var is about to set const for render func in arrows onClick event
         // solve nearby var that
         e = e < 1 ? 1 : e;
-        e = e > 4 ? 4 : e;
+        e = e > 3 ? 3 : e;
         let timeMinus = 0;
         let obj = object;
         let copyDate = Object.assign(thi$.state.datetime);
 
         switch (e){
             case 1:
-                thi$.changeType(true);
-                break;
-            case 2:
                 timeMinus = oneDay * 365;
                 obj = obj[copyDate.getFullYear()];
                 thi$.changeType(true);
                 break;
-            case 3:
+            case 2:
                 timeMinus = oneDay * copyDate.getDate();
                 obj = obj[copyDate.getFullYear()][copyDate.getMonth()];
                 thi$.changeType(true);
                 break;
-            case 4:
+            case 3:
                 timeMinus = oneDay;
                 obj = obj[copyDate.getFullYear()][copyDate.getMonth()][copyDate.getDay()];
                 thi$.changeType(false);
@@ -127,10 +137,23 @@ export default class Timeline extends React.Component{
         })
     }
 
-    changeDatetime(){
+    changeDatetime(op){
+        let dateInSeconds = this.state.datetime.getTime();
+        if(op === "+"){
+            dateInSeconds += this.state.timeMinus
+        } else if (op === "-"){
+            dateInSeconds -= this.state.timeMinus
+        }
+        let newDatetime = new Date(dateInSeconds)
         this.setState({
-            datetime
-        })
+            datetime: newDatetime,
+            refDatetime: {
+                year: newDatetime.getFullYear(),
+                month: newDatetime.getMonth(),
+                day: newDatetime.getDay(),
+            }
+        });
+        this.setNearbyToArea(this.state.nearbyToArea);
     }
 
     changeType(val){
@@ -143,7 +166,7 @@ export default class Timeline extends React.Component{
 
         let timeline =
             <div className="timeline">
-                <div className="left__arrow">
+                <div className="left__arrow" onClick={() => this.changeDatetime("-")}>
                     <img src={"/static/timeline/left-arrow.svg"} alt="влево"  width={'30px'} height={'30px'}/>
                 </div>
                 <div className={`timeline__current__data`}>
@@ -155,9 +178,11 @@ export default class Timeline extends React.Component{
                         nearbyToArea={this.state.nearbyToArea}
                         setNearbyToArea={this.setNearbyToArea}
                         changeDataArrayFunc={this.changeDatetime}
+                        setPhoto={this.props.setPhoto}
+                        nextPage={this.props.nextPage}
                     />
                 </div>
-                <div className="right__arrow">
+                <div className="right__arrow" onClick={() => this.changeDatetime("+")}>
                     <img src={"/static/timeline/right-arrow.svg"} alt="вправо" width={'30px'} height={'30px'}/>
                 </div>
             </div>;
