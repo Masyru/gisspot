@@ -2,7 +2,8 @@ import numpy as np
 import torch
 import matplotlib as mpl
 from math import sin, cos, sqrt, atan2, radians
-from tqdm.notebook import tqdm
+import timeit
+from typing import List, Tuple, Callable
 import projmapper as pm
 
 b0_common_dt = np.dtype([
@@ -67,7 +68,7 @@ b0_corparams_dt = np.dtype([
     ("spare", (np.uint8, 512 - 288)),
 ])
 
-# Types
+# Data Types
 
 # Projection
 b0_proj_dt = np.dtype([
@@ -108,7 +109,9 @@ b0_dotc_dt = np.dtype([
     ("b0_corparams", b0_corparams_dt),
 ])
 
-def parse(fname):
+# .pro files parsing
+# Return metadata and image
+def parse(fname: str) -> Tuple:
     f = open(fname, 'rb')
     b0 = np.fromfile(f, dtype=b0_proj_dt, count=1)
     sizeX = b0['b0_proj_common']['pixNum'][0]
@@ -119,7 +122,24 @@ def parse(fname):
     f.close()
     return b0, data
 
-def generate_points(img, x0, y0, dx, dy, step, window_size, nan_val=-100):  
+# Points generator
+# Return list of points (y, x)
+def generate_points(img, x0: int, y0: int, 
+                    dx: int, dy: int, step: int, 
+                    window_size: Tuple[int], nan_val: float = -100) -> Tuple[int]:
+    
+    '''
+    Vars:
+        img - numpy matrix
+        x0 - initial x
+        y0 - intitial y
+        dx - window width
+        dy - window height
+        step - points frequency
+        window_size - window size
+        nan_val - NaN value to be replaced on
+    '''
+    
     points = []
     for x in range(x0+window_size[1]//2, x0+dx-window_size[1]//2, step):
         for y in range(y0+window_size[0]//2, y0+dy-window_size[0]//2, step):
@@ -127,23 +147,61 @@ def generate_points(img, x0, y0, dx, dy, step, window_size, nan_val=-100):
                 points.append([y, x])
     return points
 
-def numpy2torch(img1, img2):
+# Convert numpy images to torch and fill NaN
+# Return (torch.FloatTensor, torch.FloatTensor)
+def numpy2torch(img1: np.float32, img2: np.float32) -> Tuple[torch.FloatTensor]:
+    
+    '''
+    Vars:
+        img1 - first image
+        img2 - second image
+    '''
+    
     img1 = img1.astype(float)
     img1[img1 < 0] = -100
     
     img2 = img2.astype(float)
     img2[img2 < 0] = -100
-    return torch.tensor(img1), torch.tensor(img2)
+    return torch.tensor(img1, dtype=torch.float32), torch.tensor(img2, dtype=torch.float32)
 
-def colorFader(c1, c2, mix=0): #fade (linear interpolate) from color c1 (at mix=0) to c2 (mix=1)
-    assert mix >= 0 and mix <= 1
-    c1=np.array(mpl.colors.to_rgb(c1))
-    c2=np.array(mpl.colors.to_rgb(c2))
+# Get color in certain color range
+# Return color hex
+def colorFader(c1: str, c2: str, mix: float = 0) -> str:
+    
+    '''
+    Vars:
+        c1 - initial color
+        c2 - final color
+        mix - [0, 1]
+    Exceptions:
+        'Dev exception' - Wrong functions usage
+    '''
+    
+    assert mix >= 0 and mix <= 1, 'Dev exception'
+    c1 = np.array(mpl.colors.to_rgb(c1))
+    c2 = np.array(mpl.colors.to_rgb(c2))
     return mpl.colors.to_hex((1-mix)*c1 + mix*c2)
 
-#   latitude - y
-#   longitude - x
-def calculate_distance(metadata, xy1, xy2, tpe='geo'):
+# Note:
+# latitude - y
+# longitude - x
+
+# Calculate distance between two points
+# Return distance in meters
+def calculate_distance(metadata: b0_proj_dt, xy1: Tuple[float], 
+                       xy2: Tuple[float], tpe: str = 'geo') -> float:
+    
+    '''
+    Vars:
+        metadata - metadata
+        xy1 - coordinates of the first point (y, x)
+        xy2 - coordinates of the second point (y, x)
+        tpe - coordinates type:
+            -- 'geo' - geo coordinates regarding Earth overall
+            -- 'pix' - coordinates in pixels regarding image
+    '''
+    
+    # Earth radius
     R = 6373.0
     
     if tpe == 'geo':
@@ -163,15 +221,22 @@ def calculate_distance(metadata, xy1, xy2, tpe='geo'):
     
     dlon = lon2 - lon1
     dlat = lat2 - lat1
-
     a = sin(dlat / 2)**2 + cos(lat1) * cos(lat2) * sin(dlon / 2)**2
     c = 2 * atan2(sqrt(a), sqrt(1 - a))
-
     distance = R * c * 1000
-    return distance
     
+    return distance
 
-def ssim(x, y, coefs):
+# Custom SSIM metric in vector form
+# Return scores
+def ssim(x: torch.FloatTensor, y: torch.FloatTensor, coefs: dict) -> torch.FloatTensor:
+    
+    '''
+    Vars:
+        x - reference image
+        y - matrix where each vector is flattened crop
+    '''
+    
     if coefs is None:
         alpha = 1
         beta = 1
@@ -196,12 +261,34 @@ def ssim(x, y, coefs):
     ssim = (C**alpha * E**beta * S**gamma).cpu()
     return ssim
 
-def rmse(x, y, coefs):
+# Simple RMSE metric in vector form
+# Return torch.FloatTensor of scores
+def rmse(x: torch.FloatTensor, y: torch.FloatTensor, coefs: dict) -> torch.FloatTensor:
+    
+    '''
+    Vars:
+        x - reference image
+        y - matrix where each vector is flattened crop
+    '''
+    
     x = x.reshape(1, -1)
     score = torch.sqrt(torch.mean(torch.pow(x-y, 2), 1))
     return score
 
-def prepare_ref_img(img, point_coor, window_size):
+# Dev function for reference image preparation
+# Return cropped image with window_size around point coordinate
+def _prepare_ref_img(img: torch.FloatTensor, point_coor: Tuple[int], 
+                     window_size: Tuple[int]) -> torch.FloatTensor:
+    
+    '''
+    Vars:
+        img - image to be cropped
+        point_coor - point coordinates (y, x)
+        window_size - window size
+    Exceptions:
+        '0' - Out of bounds
+    '''
+    
     ref_window_lcx = point_coor[1]-window_size[1]//2
     ref_window_rcx = ref_window_lcx+window_size[1]
     ref_window_ucy = point_coor[0]-window_size[0]//2
@@ -218,23 +305,40 @@ def prepare_ref_img(img, point_coor, window_size):
     
     return im
 
-def find_best_match(img1,  # image where we gotta find our point
-                    img2,  # image where we pined point
-                    point_coor, 
-                    window_size, 
-                    vicinity_size, 
-                    metric_fn, # metric function wanna maximize: metric_fn(crop1, crop2, coefs)
-                    device,
-                    mode='max',
-                    coefs=None): # coeficients for metric_fn
+def find_best_match(img1: torch.FloatTensor, 
+                    img2: torch.FloatTensor, 
+                    point_coor: Tuple[int], 
+                    window_size: Tuple[int], 
+                    vicinity_size: Tuple[int], 
+                    metric_fn: Callable[[torch.FloatTensor, torch.FloatTensor, dict], torch.FloatTensor], 
+                    device: str,
+                    mode: str = 'max',
+                    coefs: dict = None) -> Tuple:
+    
+    '''
+    Vars:
+        img1 - image where we pined point
+        img2 - image where we want to find our point
+        point_coor - point coordinates (y, x)
+        window_size - window size
+        vicinity_size - vicinity size
+        metric_fn - metric function: metric_fn(crop1, crop2, coefs)
+        device - device used
+        mode - optimization mode
+        coefs - parameters for metric function
+    Exceptions:
+        '0' - Out of bounds
+        '1' - Too noisy
+        'Dev exception' - Wrong functions usage
+    '''
     
     assert mode in ['max', 'min'], 'Dev exception'
     
     assert point_coor[0] >= 0 and point_coor[0] < img2.shape[0], '0' # Out of bounds
     assert point_coor[1] >= 0 and point_coor[1] < img2.shape[1], '0'
     
-
-    ref_image = prepare_ref_img(img1, point_coor, window_size)
+    # Calculate reference image and vicinity coors
+    ref_image = _prepare_ref_img(img1, point_coor, window_size)
     vicinity_lcx = point_coor[1]-vicinity_size[1]//2
     vicinity_rcx = vicinity_lcx+vicinity_size[1]
     
@@ -262,23 +366,25 @@ def find_best_match(img1,  # image where we gotta find our point
         vicinity_ucy = vicinity_dcy - vicinity_size[0]
         if vicinity_dcy < 0:
             vicinity_dcy = 0
-        
+    
+    # Sample vicinity crops
     tmp1 = img1[vicinity_ucy:vicinity_dcy, vicinity_lcx:vicinity_rcx]
     tmp2 = img2[vicinity_ucy:vicinity_dcy, vicinity_lcx:vicinity_rcx]
     
+    # Check if vicinity have enough of significant pixels
     assert tmp2[tmp2<0].sum()/(tmp2.shape[0]*tmp2.shape[1]) < .7, '1'
     assert tmp1[tmp1<0].sum()/(tmp1.shape[0]*tmp1.shape[1]) < .7, '1'
     
+    # Prepare data
     idx = []
     yx = []
-    
     imgs = torch.zeros((
         (vicinity_dcy-vicinity_ucy-window_size[0])*(vicinity_rcx-vicinity_lcx-window_size[1]),
         window_size[1]*window_size[0]
     )).to(device)
     
+    # Collect moving windows crops
     c = 0
-    
     for y in range(vicinity_ucy, vicinity_dcy-window_size[0]):
         for x in range(vicinity_lcx, vicinity_rcx-window_size[1]):
             idx.append([(2*y + window_size[0])//2, (2*x + window_size[1])//2])
@@ -295,22 +401,46 @@ def find_best_match(img1,  # image where we gotta find our point
         l = torch.argmin(scores).item()
         return idx[l], scores[l].item()
 
-def inference(img1,  # image where we gotta find our point
-              img2,  # image where we pined point
-              metadata,
-              dt,
-              point_coor, 
-              window_size, 
-              vicinity_size, # start point vicinity size
-              metric_fn, # metric function wanna maximize: metric_fn(crop1, crop2, coefs)
-              device,
-              mode='max',
-              tpe='pix',
-              coefs=None,
-              bef=None, # Backward Euclidean Filtering threshold
-              sf=None): # Score filtering
+# Full inference function of getting point, vicinity and mask
+# Return (y, x), velocity, mask or (y, x), velocity, mask
+def inference(img1: torch.FloatTensor,
+              img2: torch.FloatTensor,
+              metadata: b0_proj_dt,
+              dt: int,
+              point_coor: Tuple[float],
+              window_size: Tuple[int],
+              vicinity_size: Tuple[int],
+              metric_fn: Callable[[torch.FloatTensor, torch.FloatTensor, dict], torch.FloatTensor],
+              device: str,
+              mode: str = 'max',
+              tpe: str = 'pix',
+              coefs: dict = None, 
+              bef: float = None,
+              sf: float = None) -> Tuple:
     
+    '''
+    Vars:
+        img1 - image where we pined point
+        img2 - image where we want to find our point
+        metadata - metadata
+        dt - time delta between images
+        point_coor - point coordinates (y, x)
+        window_size - window size
+        vicinity_size - vicinity size
+        metric_fn - metric function: metric_fn(crop1, crop2, coefs)
+        device - device used
+        mode - optimization mode
+        tpe - coordinates type: 'geo' or 'pix'
+        coefs - parameters for metric function
+        bef - Backward Euclidean Filtering threshold or -1 if only loss needed
+        sf - Score filtering threshold (recommend 0.5)
+    Exceptions:
+        '0' - Out of bounds
+        '1' - Too noisy
+        'Dev exception' - Wrong functions usage
+    '''
     
+    # If geo used then init ProjMapper as converter and convert coordinates
     if tpe == 'geo':
         converter = ProjMapper(metadata['b0_proj_common']['projType']-1,
                                metadata['b0_proj_common']['lon'],
@@ -322,34 +452,40 @@ def inference(img1,  # image where we gotta find our point
 
         point_coor = [converter.y(point_coor[0]), converter.x(point_coor[1])]
     
-    idx, score = find_best_match(img1, img2, window_size, 
+    
+    # Calculate forward pass
+    idx, score = find_best_match(img1, img2, point_coor, window_size, 
                     vicinity_size, metric_fn, 
                     device, mode, coefs)
     
     
+    # If BEF is not None then calculate backward pass
     if not bef is None:
-        idx_rev, score_rev = find_best_match(img2, img1, window_size, 
+        idx_rev, score_rev = find_best_match(img2, img1, idx, window_size, 
                         vicinity_size, metric_fn, 
                         device, mode, coefs)
     
         loss = ((idx_rev[0]-point_coor[0])**2+(idx_rev[1]-point_coor[1])**2)**.5
         loss = loss/(vicinity_size[0]**2+vicinity_size[1]**2)**.5
     
+    # Filtering
     mask = True
     if not sf is None:
         mask = score > sf
-    if not bef is None or bef > 0:
-        mask = mask * (loss < bef)
+    if not bef is None:
+        if bef > 0:
+            mask = mask * (loss < bef)
     
+    # Convert coordinates to geo back
     if tpe == 'geo':
         idx = [converter.lat(idx[0]), converter.lon(idx[1])]
         point_coor = [converter.lat(point_coor[0]), converter.lon(point_coor[1])]
     
     distance = calculate_distance(metadata, idx, point_coor, tpe=tpe)
     velocity = distance/dt
+   
     
-    
-    if bef is None:
+    if bef is None or bef > 0:
         return idx, velocity, mask
     elif bef == -1:
         return idx, velocity, loss, mask
