@@ -1,5 +1,5 @@
 from fastapi import Request, APIRouter, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 
 from .services import *
@@ -29,8 +29,7 @@ async def websocket_endpoint(websocket: WebSocket):
         manager.disconnect(ws_id)
 
 
-# @router.post("/processing/{ws_id}")
-# async def processing_endpoint(data: StandardModel, ws_id: int):
-#     ws = await manager.get_ws(ws_id)
-#     await manager.send_data(response_dict=,
-#                             websocket=ws)
+@router.post("/processing/", response_class=JSONResponse)
+async def processing_endpoint(data: StandardModel):
+    response: StandardModel = service_request(data)
+    return response.json()

@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 
-__all__ = ["StandardModel", "PreviewRequest", "PreviewData", "VectorsRequest"]
+__all__ = ["StandardModel", "PreviewRequest", "PreviewData", "VectorsRequest", "VectorResult"]
 
 
 class StandardModel(BaseModel):
@@ -29,3 +29,10 @@ class VectorsRequest(BaseModel):
     points: list[Point]
     window_size: int
     vicinity_size: int
+
+
+class VectorResult(BaseModel):
+    ws_id: str
+    vector = list[Point, Point]
+    velocity: float
+    error: str
