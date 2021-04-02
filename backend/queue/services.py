@@ -2,8 +2,9 @@ from rq.command import send_stop_job_command
 from rq.job import Job
 from typing import Optional, List
 from core import queues, tasks
+from requests import post
 
-from .settings import TTL, RESULT_TTL, FAILURE_TTL
+from .settings import TTL, RESULT_TTL, FAILURE_TTL, SERVER_URL
 
 
 def add_task(args: Optional[tuple],
@@ -38,3 +39,13 @@ def get_all_result_task(queue_type: Optional[str] = "default") \
             jobs_result.append(job)
 
     return jobs_result
+
+
+def preparing_vector_json(job: Job) -> dict:
+    result = job.result
+    result["ws_id"] = job.meta["ws_id"]
+    return result
+
+
+def send_vector(job: Job) -> None:
+    post(SERVER_URL, json=preparing_vector_json(job))

@@ -8,3 +8,5 @@ REDIS_URL = ""
 RESULT_TTL = 600
 TTL = None
 FAILURE_TTL = 600
+
+SERVER_URL = "localhost:8800/service/"

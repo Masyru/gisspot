@@ -33,6 +33,6 @@ class VectorsRequest(BaseModel):
 
 class VectorResult(BaseModel):
     ws_id: str
-    vector = list[Point, Point]
+    vector = list[list[float], list[float]]
     velocity: float
     error: str
