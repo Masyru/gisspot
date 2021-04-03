@@ -40,8 +40,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
 
 @router.post("/processing/", response_class=JSONResponse)
-async def processing_endpoint(data):
-    print(data)
-    print(data.dict())
+async def processing_endpoint(data: StandardModel):
     response: StandardModel = service_request(data)
+    print(response)
     return response.json()

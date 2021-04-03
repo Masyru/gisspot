@@ -2,6 +2,7 @@ from typing import Optional, Tuple, List
 from rq import Worker, Queue, Connection, get_current_job
 from os import path
 from requests import post
+from json import dumps
 
 import sys
 sys.path.append("../../")
@@ -102,5 +103,4 @@ def big_worker(ws_id: Optional[str],
 def send_result():
     job = get_current_job(conn)
     result = get_vector_json(job.dependency_ids[0].decode("utf-8").split(":")[-1])
-    print(result)
-    post(SERVER_URL, json=result)
+    post(SERVER_URL, data=dumps(result))

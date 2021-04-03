@@ -39,8 +39,8 @@ def service_request(data: Optional[StandardModel]) \
     try:
         if data.type == "connectVectors":
             send_result(VectorResult(**data.data))
-    except Exception:
-        response.data = {"status": "Error", "message": ""}
+    except Exception as e:
+        response.data = {"status": "Error", "message": str(e)}
     else:
         response.data = {"status": "Success"}
     return response
@@ -48,4 +48,4 @@ def service_request(data: Optional[StandardModel]) \
 
 def send_result(data: VectorResult):
     manager.send_data(websocket=data.ws_id,
-                      data=data.dict(exclude={"ws_id"}))
+                      response_dict=data.dict(exclude={"ws_id"}))
