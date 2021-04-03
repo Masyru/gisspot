@@ -1,6 +1,6 @@
 import React  from "react";
 const port = ":8000";
-const url = "ws://localhost" + port;
+const url = "wss://localhost" + port;
 
 export const {Provider, Consumer} = React.createContext({});
 

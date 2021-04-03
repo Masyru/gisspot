@@ -53,9 +53,8 @@ export default class CesiumViewer extends React.Component{
 
         // Set zoom
         viewer.scene.screenSpaceCameraController.maximumZoomDistance = 20000000;
-        viewer.scene.screenSpaceCameraController.minimumZoomDistance = 0;
+        viewer.scene.screenSpaceCameraController.minimumZoomDistance = 150000;
         viewer.scene.screenSpaceCameraController.enableTilt = false;
-
 
         viewer.camera.flyTo({
           destination: Cesium.Cartesian3.fromDegrees(131.9113, 43.1332, 1500000)
@@ -70,7 +69,7 @@ export default class CesiumViewer extends React.Component{
             <WebSocketViewer>
               {
                   React.Children.forEach(this.props.children, child => {
-                      React.cloneElement(child, {viewer: this.state.viewer})
+                      React.cloneElement(child, { viewer: this.state.viewer })
                   })
               }
             </WebSocketViewer>
