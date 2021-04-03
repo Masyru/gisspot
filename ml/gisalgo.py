@@ -278,72 +278,70 @@ def find_best_match(img1: torch.FloatTensor,
         vicinity_size - vicinity size
         metric_fn - metric function: metric_fn(crop1, crop2, coefs)
         device - device used
-        mode - optimization mode
-        coefs - parameters for metric function
     Exceptions:
         '0' - Out of bounds
         '1' - Too noisy
         'Dev exception' - Wrong functions usage
     '''
-    
-    assert mode in ['max', 'min'], 'Dev exception'
-    
+    assert mode in ['max', 'min']
+        
     assert point_coor[0] >= 0 and point_coor[0] < img2.shape[0], '0' # Out of bounds
     assert point_coor[1] >= 0 and point_coor[1] < img2.shape[1], '0'
     
     # Calculate reference image and vicinity coors
     ref_image = _prepare_ref_img(img1, point_coor, window_size)
-    vicinity_lcx = point_coor[1]-vicinity_size[1]//2
-    vicinity_rcx = vicinity_lcx+vicinity_size[1]
+    vicinity_lcx = point_coor[1]-vicinity_size[1]
+    vicinity_rcx = point_coor[1]+vicinity_size[1]
     
     # BADTRIP HANDLER 1
     if vicinity_lcx < 0:
         vicinity_lcx = 0
-        vicinity_rcx = vicinity_size[1]
+        vicinity_rcx = vicinity_size[1]*2+1
     # BADTRIP HANDLER 2
     if vicinity_rcx >= img2.shape[1]:
         vicinity_rcx = img2.shape[1]-1
-        vicinity_lcx = vicinity_rcx - vicinity_size[1]
+        vicinity_lcx = vicinity_rcx - 2*vicinity_size[1]
         if vicinity_lcx < 0:
             vicinity_lcx = 0
     
-    vicinity_ucy = point_coor[0]-vicinity_size[0]//2
-    vicinity_dcy = vicinity_ucy+vicinity_size[0]
+    vicinity_ucy = point_coor[0]-vicinity_size[0]
+    vicinity_dcy = point_coor[0]+vicinity_size[0]
     
     # BADTRIP HANDLER 3
     if vicinity_ucy < 0:
         vicinity_ucy = 0
-        vicinity_dcy = vicinity_size[0]
+        vicinity_dcy = vicinity_size[0]*2+1
     # BADTRIP HANDLER 4
     if vicinity_dcy >= img2.shape[0]:
         vicinity_dcy = img2.shape[0]-1
-        vicinity_ucy = vicinity_dcy - vicinity_size[0]
-        if vicinity_dcy < 0:
-            vicinity_dcy = 0
+        vicinity_ucy = vicinity_dcy - 2*vicinity_size[0]
+        if vicinity_ucy < 0:
+            vicinity_ucy = 0    
     
     # Sample vicinity crops
-    tmp1 = img1[vicinity_ucy:vicinity_dcy, vicinity_lcx:vicinity_rcx]
-    tmp2 = img2[vicinity_ucy:vicinity_dcy, vicinity_lcx:vicinity_rcx]
+    tmp1 = img1[vicinity_ucy:vicinity_dcy+1, vicinity_lcx:vicinity_rcx+1]
+    tmp2 = img2[vicinity_ucy:vicinity_dcy+1, vicinity_lcx:vicinity_rcx+1]
     
     # Check if vicinity have enough of significant pixels
-    assert tmp2[tmp2<0].sum()/(tmp2.shape[0]*tmp2.shape[1]) < .7, '1'
-    assert tmp1[tmp1<0].sum()/(tmp1.shape[0]*tmp1.shape[1]) < .7, '1'
+    assert (tmp2<0).sum()/(tmp2.shape[0]*tmp2.shape[1]) < .7, '1'
+    assert (tmp1<0).sum()/(tmp1.shape[0]*tmp1.shape[1]) < .7, '1'
     
     # Prepare data
+    h = vicinity_dcy-vicinity_ucy-window_size[0]*2+1
+    w = vicinity_rcx-vicinity_lcx-window_size[1]*2+1
     idx = []
-    yx = []
     imgs = torch.zeros((
-        (vicinity_dcy-vicinity_ucy-window_size[0])*(vicinity_rcx-vicinity_lcx-window_size[1]),
-        window_size[1]*window_size[0]
+        w*h,
+        (window_size[1]*2+1)*(window_size[0]*2+1)
     )).to(device)
     
     # Collect moving windows crops
     c = 0
-    for y in range(vicinity_ucy, vicinity_dcy-window_size[0]):
-        for x in range(vicinity_lcx, vicinity_rcx-window_size[1]):
-            idx.append([(2*y + window_size[0])//2, (2*x + window_size[1])//2])
-            yx.append([y, x])
-            img2_crop = img2[y:y+window_size[0], x:x+window_size[1]]
+    for y in range(vicinity_ucy, vicinity_dcy-window_size[0]*2+1):
+        for x in range(vicinity_lcx, vicinity_rcx-window_size[1]*2+1):
+            
+            idx.append([y+window_size[0], x+window_size[1]])
+            img2_crop = img2[y:y+window_size[0]*2+1, x:x+window_size[1]*2+1]
             imgs[c] = img2_crop.reshape(-1)
             c += 1
     
