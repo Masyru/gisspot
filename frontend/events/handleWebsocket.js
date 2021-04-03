@@ -17,7 +17,7 @@ export default class WebSocketViewer extends React.Component{
 
     componentDidMount() {
 
-        this.wb = new WebSocket(url + '/ws');
+        this.wb = new WebSocket(url + "/ws");
         // listen to onmessage event
         this.wb.onmessage = event => {
           // add the new message to state
