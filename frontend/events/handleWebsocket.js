@@ -1,6 +1,6 @@
 import React  from "react";
 const port = ":8000";
-const url = "wss://localhost" + port;
+const url = "ws://localhost" + port;
 
 export const {Provider, Consumer} = React.createContext({});
 
@@ -21,6 +21,7 @@ export default class WebSocketViewer extends React.Component{
         // listen to onmessage event
         this.wb.onmessage = event => {
           // add the new message to state
+            console.log(event)
             this.setState({
                 arrayData : [...this.state.arrayData, event.data],
                 lastGotData: event.data,
