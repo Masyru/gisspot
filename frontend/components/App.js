@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import Toolbar, { FixRegion, ClearButton, PreviewInfo } from "./Toolbar";
 import Timeline  from "./Timeline";
 import PhotoPreview from "./PhotoPreview";
-import { getViewer } from "../Cesium/Main";
 
 const defaults = {
     lon1: null,
@@ -47,10 +46,10 @@ const Page = props => {
                         nextPage={() => setActivePage(4)}
                         setPhoto={(obj) => props.setPhoto(1, obj)}
                     />
-                </>
+                </>;
             break;
         case 4:
-            page = <PhotoPreview photos={props.photos}/>
+            page = <PhotoPreview photos={props.photos}/>;
             break;
     }
 

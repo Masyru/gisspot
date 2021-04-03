@@ -20,9 +20,6 @@ export function getPointCoords(viewer){
 
 }
 
-
-
-
 // Fly to current location
 // TODO Need to fix
 export function flyToCurrentPos(viewer){
@@ -52,3 +49,7 @@ export function flyToCurrentPos(viewer){
     navigator.geolocation.getCurrentPosition(success, error, options);
 }
 
+
+export function fixZoom(viewer, bool) {
+    viewer.scene.screenSpaceCameraController.enableInputs = bool;
+}

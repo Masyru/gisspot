@@ -1,9 +1,11 @@
 import React from "react";
 import ReactDOM from "react-dom";
 import App from "./components/App";
-import "./Cesium/Main";
+import CesiumViewer from "./Cesium/Main";
 
 ReactDOM.render(
-    <App />,
+    <CesiumViewer>
+        <App />
+    </CesiumViewer>,
     document.getElementById('root')
 );
