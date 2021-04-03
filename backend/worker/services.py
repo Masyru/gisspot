@@ -42,6 +42,7 @@ def worker_processing(b0_file_1,
                    "velocity": 0,
                    "error": "Что-то про маску"}
     except AssertionError as e:
+        e = e.args[0]
         if e == "0":
             res = {"points": [[0, 0], [0, 0]],
                    "velocity": 0,
