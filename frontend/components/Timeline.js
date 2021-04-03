@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useLayoutEffect } from "react";
 import "./Timeline.css";
 import { generateDateObject, startYear, oneDay } from "../utils/utils";
+import { Consumer } from "../events/handleWebsocket";
 
 let object = generateDateObject();
 
@@ -33,15 +34,22 @@ function ConversionLine(props){
         <>
             {
                 props.data.length && props.data.map((item, k) =>
+                    props.nearbyToArea < 3 ?
                         <Card
                             key={k}
                             text={item}
                             showPreview={props.showPreview}
                             img={props.currentArrayData[k]}
-                            changeData={ props.nearbyToArea < 3 ?
-                                () => { props.setNearbyToArea(props.nearbyToArea + 1)} :
+                            changeData={ () => { props.setNearbyToArea(props.nearbyToArea + 1)}}
+                        />
+                        :
+                        <Card
+                            key={k}
+                            text={item}
+                            showPreview={props.showPreview}
+                            img={props.currentArrayData[k]}
+                            changeData={
                                 () => {
-                                    console.log('Change to second page chooser');
                                     props.setPhoto(item)
                                     props.nextPage();
                                 }

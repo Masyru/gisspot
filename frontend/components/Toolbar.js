@@ -1,5 +1,7 @@
 import React, { useState } from "react";
+import { fixZoom } from "../Cesium/Objects";
 import "./Toolbar.css";
+import "./PhotoPreview.css";
 
 
 const Button = props => {
@@ -14,7 +16,13 @@ const Button = props => {
 export const ClearButton = props => {
     return(
         <div className="fix__region__btn">
-            <Button active={false} title={"Сбросить регион"} width={"15px"} height={"15px"} cursor={"remove"} onClickFunc={props.onClickFunc}/>
+            <Button active={false} title={"Сбросить регион"} width={"15px"} height={"15px"} cursor={"remove"}
+                    onClickFunc={() => {
+                            fixZoom(props.viewer, true)
+                            props.onClickFunc();
+                        }
+                    }
+            />
         </div>
     )
 }
@@ -23,7 +31,12 @@ export const ClearButton = props => {
 export const FixRegion = props => {
     return(
         <div className="fix__region__btn">
-            <Button active={false} title={"Выбрать регион"} width={"15px"} height={"15px"} cursor={"zoom-in"} onClickFunc={() => props.onClickFunc(2)}/>
+            <Button active={false} title={"Выбрать регион"} width={"15px"} height={"15px"} cursor={"zoom-in"}
+                    onClickFunc={() => {
+                        fixZoom(props.viewer, false)
+                        props.onClickFunc(2);
+                    }
+            }/>
         </div>
     )
 }

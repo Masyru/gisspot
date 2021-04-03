@@ -19,12 +19,13 @@ const Page = props => {
     switch (activePage){
         case 1:
             // TODO: Func to stop fixing the zoom
-            page = <FixRegion onClickFunc={setActivePage}/>;
+            page = <FixRegion onClickFunc={setActivePage} viewer={props.viewer}/>;
             break;
         case 2:
             page =
                 <>
                     <ClearButton
+                        viewer={props.viewer}
                         onClickFunc={() => {
                                 setActivePage(1);
                                 props.resetToDefaults();
@@ -90,7 +91,14 @@ export default class App extends React.Component{
 
     render(){
         // App menu
-        let app = <Page resetToDefaults={this.resetToDefaults} setPhoto={this.setPhoto} photos={this.state}/>;
+        let app =
+            <Page
+                resetToDefaults={this.resetToDefaults}
+                setPhoto={this.setPhoto}
+                photos={this.state}
+                viewer={this.props.viewer}
+            />;
+
         return(app);
     }
 };

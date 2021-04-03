@@ -1,6 +1,6 @@
 import React  from "react";
 const port = ":8000";
-const url = "ws://localhost" + port;
+const url = "ws://localhost" + port + "/ws/";
 
 export const {Provider, Consumer} = React.createContext({});
 
@@ -12,35 +12,36 @@ export default class WebSocketViewer extends React.Component{
             lastGotData: {},
         };
 
-        this.wb = null;
+        this.wb = new WebSocket(url);
+        this.sendJsonOnServer = this.sendJsonOnServer.bind(this);
     }
 
     componentDidMount() {
-
-        this.wb = new WebSocket(url + "/ws");
         // listen to onmessage event
         this.wb.onmessage = event => {
-          // add the new message to state
-            console.log(event)
+            // add the new message to state
+            event.preventDefault();
             this.setState({
                 arrayData : [...this.state.arrayData, event.data],
-                lastGotData: event.data,
-            })
+                lastGotData: JSON.parse(event.data),
+            });
         };
+    }
 
-        // for testing purposes: sending to the echo service which will send it back back
-        setInterval( _ => {
-            this.wb.send( String(Math.random()) )
-        }, 2000 )
+    sendJsonOnServer(data){
+        this.wb.send(JSON.stringify(data));
     }
 
     render() {
         return(
             <Provider value=
-                          {{arrayData: this.state.arrayData,
-                                lastGotData: this.state.lastGotData}}
+                          {{
+                              arrayData: this.state.arrayData,
+                              lastGotData: this.state.lastGotData,
+                              sendData: this.sendJsonOnServer,
+                          }}
             >
-                {this.props.children}
+                { this.props.children }
             </Provider>
         );
     }

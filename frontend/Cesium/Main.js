@@ -65,12 +65,16 @@ export default class CesiumViewer extends React.Component{
     }
 
   render(){
+        let childrenArray = new Array();
+        React.Children.forEach(this.props.children,
+            (child, k) => childrenArray.push(
+                React.cloneElement(child, { key: k, viewer: this.state.viewer })
+            ));
+
         return(
             <WebSocketViewer>
               {
-                  React.Children.forEach(this.props.children, child => {
-                      React.cloneElement(child, { viewer: this.state.viewer })
-                  })
+                  childrenArray
               }
             </WebSocketViewer>
         )
