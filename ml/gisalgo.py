@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import torch.nn.functional as F
 from math import sin, cos, sqrt, atan2, radians
 from typing import List, Tuple, Callable
 import projmapper as pm
@@ -183,7 +184,7 @@ def calculate_distance(metadata: b0_proj_dt, xy1: Tuple[float],
 
 # Custom SSIM metric in vector form
 # Return scores
-def ssim(x: torch.FloatTensor, y: torch.FloatTensor, coefs: dict) -> torch.FloatTensor:
+def ssim(x: torch.FloatTensor, y: torch.FloatTensor) -> torch.FloatTensor:
     
     '''
     Vars:
@@ -191,14 +192,9 @@ def ssim(x: torch.FloatTensor, y: torch.FloatTensor, coefs: dict) -> torch.Float
         y - matrix where each vector is flattened crop
     '''
     
-    if coefs is None:
-        alpha = 1
-        beta = 1
-        gamma = 1
-    else:
-        alpha = coefs['alpha']
-        beta = coefs['beta']
-        gamma = coefs['gamma']
+    alpha = 1
+    beta = 1
+    gamma = 1
     
     x = x.reshape(1, -1)
     x_mean = torch.mean(x, 1)
@@ -217,7 +213,7 @@ def ssim(x: torch.FloatTensor, y: torch.FloatTensor, coefs: dict) -> torch.Float
 
 # Simple RMSE metric in vector form
 # Return torch.FloatTensor of scores
-def rmse(x: torch.FloatTensor, y: torch.FloatTensor, coefs: dict) -> torch.FloatTensor:
+def rmse(x: torch.FloatTensor, y: torch.FloatTensor) -> torch.FloatTensor:
     
     '''
     Vars:
@@ -243,19 +239,18 @@ def _prepare_ref_img(img: torch.FloatTensor, point_coor: Tuple[int],
         '0' - Out of bounds
     '''
     
-    ref_window_lcx = point_coor[1]-window_size[1]//2
-    ref_window_rcx = ref_window_lcx+window_size[1]
-    ref_window_ucy = point_coor[0]-window_size[0]//2
-    ref_window_dcy = ref_window_ucy+window_size[0]
+    ref_window_lcx = point_coor[1]-window_size[1]
+    ref_window_rcx = point_coor[1]+window_size[1]
+    ref_window_ucy = point_coor[0]-window_size[0]
+    ref_window_dcy = point_coor[0]+window_size[0]
     
     assert ref_window_lcx >= 0, '0'
-    assert ref_window_rcx < img.shape[1], '0'
+    assert ref_window_rcx-1 < img.shape[1], '0'
     assert ref_window_ucy >= 0, '0'
-    assert ref_window_dcy < img.shape[0], '0'
+    assert ref_window_dcy-1 < img.shape[0], '0'
     
-    im = img[ref_window_ucy:ref_window_dcy, ref_window_lcx:ref_window_rcx]
-    
-    assert im[im<0].sum() == 0, '1' # Too noisy
+    im = img[ref_window_ucy:ref_window_dcy+1, ref_window_lcx:ref_window_rcx+1]
+    assert (im<0).sum() == 0, '1' # Too noisy
     
     return im
 
@@ -266,8 +261,7 @@ def find_best_match(img1: torch.FloatTensor,
                     vicinity_size: Tuple[int], 
                     metric_fn: Callable[[torch.FloatTensor, torch.FloatTensor, dict], torch.FloatTensor], 
                     device: str,
-                    mode: str = 'max',
-                    coefs: dict = None) -> Tuple:
+                    mode: str = 'max') -> Tuple:
     
     '''
     Vars:
@@ -329,30 +323,20 @@ def find_best_match(img1: torch.FloatTensor,
     # Prepare data
     h = vicinity_dcy-vicinity_ucy-window_size[0]*2+1
     w = vicinity_rcx-vicinity_lcx-window_size[1]*2+1
-    idx = []
-    imgs = torch.zeros((
-        w*h,
-        (window_size[1]*2+1)*(window_size[0]*2+1)
-    )).to(device)
     
-    # Collect moving windows crops
-    c = 0
-    for y in range(vicinity_ucy, vicinity_dcy-window_size[0]*2+1):
-        for x in range(vicinity_lcx, vicinity_rcx-window_size[1]*2+1):
-            
-            idx.append([y+window_size[0], x+window_size[1]])
-            img2_crop = img2[y:y+window_size[0]*2+1, x:x+window_size[1]*2+1]
-            imgs[c] = img2_crop.reshape(-1)
-            c += 1
+    imgs = torch.squeeze(F.unfold(tmp2.view(1, 1, *tmp2.shape), (window_size[0]*2+1, window_size[1]*2+1))).T.to(device)
     
-    scores = metric_fn(ref_image, imgs, coefs)
+    scores = metric_fn(ref_image, imgs)
     if mode == 'max':
         l = torch.argmax(scores).item()
-        return idx[l], scores[l].item()
+        y = l // (window_size[0]*2 +1)
+        x = l % (window_size[1]*2 +1)
+        return (y, x), scores[l].item()
     else:
         l = torch.argmin(scores).item()
-        return idx[l], scores[l].item()
-
+        y = l // (window_size[0]*2 +1)
+        x = l % (window_size[1]*2 +1)
+        return (y, x), scores[l].item()
 # Full inference function of getting point, vicinity and mask
 # Return (y, x), velocity, mask or (y, x), velocity, mask
 def inference(img1: torch.FloatTensor,
@@ -366,7 +350,6 @@ def inference(img1: torch.FloatTensor,
               device: str,
               mode: str = 'max',
               tpe: str = 'pix',
-              coefs: dict = None, 
               bef: float = None,
               sf: float = None) -> Tuple:
     
@@ -408,14 +391,14 @@ def inference(img1: torch.FloatTensor,
     # Calculate forward pass
     idx, score = find_best_match(img1, img2, point_coor, window_size, 
                     vicinity_size, metric_fn, 
-                    device, mode, coefs)
+                    device, mode)
     
     
     # If BEF is not None then calculate backward pass
     if not bef is None:
         idx_rev, score_rev = find_best_match(img2, img1, idx, window_size, 
                         vicinity_size, metric_fn, 
-                        device, mode, coefs)
+                        device, mode)
     
         loss = ((idx_rev[0]-point_coor[0])**2+(idx_rev[1]-point_coor[1])**2)**.5
         loss = loss/(vicinity_size[0]**2+vicinity_size[1]**2)**.5
