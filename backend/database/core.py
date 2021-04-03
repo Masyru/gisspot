@@ -43,7 +43,7 @@ class GisStac:
         print(file_name)
         b0, data = parse(path_pro)
         item: Item = stac.create_item(i_id=file_name, metadata=b0)
-        assets: list[Asset] = [
+        assets: List[Asset] = [
             Asset(href=path_pro, media_type="pro")
         ]
         if path_tiff is not None:
@@ -73,8 +73,8 @@ class GisStac:
         self.root_catalog.normalize_hrefs(self.path)
         self.root_catalog.save(catalog_type=CatalogType.SELF_CONTAINED)
 
-    def filter(self, time_intervals: List[list[datetime, datetime]],
-               bboxes=List[list[float, float, float, float]]) -> List[Item]:
+    def filter(self, time_intervals: List[List[datetime]],
+               bboxes: List[List[float]]) -> List[Item]:
         res: List[Item] = []
         for catalog in self.root_catalog.get_children():
             res += filter_catalog(catalog, time_intervals, bboxes)

@@ -1,2 +1,3 @@
-from .manager import ConnectionManager
-from .services import *
+import sys
+sys.path.append("../../")
+from backend.server.ws.services import *

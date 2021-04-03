@@ -4,6 +4,7 @@ from typing import Optional, List
 from requests import post
 
 import sys
+
 sys.path.append("../../")
 from backend.queue.core import queues, tasks
 from backend.queue.settings import TTL, RESULT_TTL, FAILURE_TTL, SERVER_URL
@@ -16,13 +17,13 @@ def add_task(args: Optional[tuple],
         -> None:
     assert task_type in queues.keys()
     meta = {"ws_id": ws_id}
-    # if task_type == "default":  # TODO : Добавить worker, который будет возращать ответ серверу
-        # queues[task_type].enqueue("")
-    queues[task_type].enqueue_call(func=tasks[task_type], args=args,
-                                   kwargs=kwargs, meta=meta,
-                                   result_ttl=RESULT_TTL,
-                                   failure_ttl=FAILURE_TTL,
-                                   ttl=TTL)
+    job = queues[task_type].enqueue_call(func=tasks[task_type], args=args,
+                                         kwargs=kwargs, meta=meta,
+                                         result_ttl=RESULT_TTL,
+                                         failure_ttl=FAILURE_TTL,
+                                         ttl=TTL)
+    if task_type == "default":
+        queues[task_type].enqueue_call(func=tasks["send"], depends_on=job)
 
 
 def stop_all_ws_task(ws_id: str) -> None:
@@ -46,10 +47,11 @@ def get_all_result_task(queue_type: Optional[str] = "default") \
 
 
 def preparing_vector_json(job: Job) -> dict:
-    result = job.result
-    result["ws_id"] = job.meta["ws_id"]
+    result = {"type": "connectVectors",  "data": job.result}
+    result["data"]["ws_id"] = job.meta["ws_id"]
     return result
 
 
-def send_vector(job: Job) -> None:
-    post(SERVER_URL, json=preparing_vector_json(job))
+def get_vector_json(job_id) -> dict:
+    job = queues["default"].fetch_job(job_id)
+    return preparing_vector_json(job)

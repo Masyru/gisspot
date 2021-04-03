@@ -11,4 +11,5 @@ redis_conn = from_url(REDIS_URL)
 queues = {"default": Queue("default", connection=redis_conn),
           "high": Queue("high", connection=redis_conn)}
 tasks = {"default": "backend.worker.services.worker_processing",
+         "send": "backend.worker.services.send_result",
          "high": "backend.worker.services.big_worker"}

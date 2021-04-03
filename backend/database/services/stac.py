@@ -14,7 +14,7 @@ def create_item(i_id: str,
                 metadata: b0_proj_dt) \
         -> Item:
     geometry: dict = {}
-    bbox: list[float] = [
+    bbox: List[float] = [
         float(metadata["b0_proj_common"]["lon"][0]),
         float(metadata["b0_proj_common"]["lat"][0]),
         float(metadata["b0_proj_common"]["lonSize"][0]),
@@ -66,8 +66,8 @@ def is_not_intersection_bbox(bbox_1: List[float],
 
 
 def is_item_match_by_time_pos(item: Item,
-                              time_intervals: List[list[datetime, datetime]],
-                              bboxes=List[list[float, float, float, float]]):
+                              time_intervals: List[List[datetime]],
+                              bboxes: List[List[float]]):
     for time_interval in time_intervals:
         if is_time_in_interval(item.datetime, time_interval):
             break
@@ -83,8 +83,8 @@ def is_item_match_by_time_pos(item: Item,
 
 
 def filter_catalog(catalog: Union[Catalog, Collection],
-                   time_intervals: List[list[datetime, datetime]],
-                   bboxes=List[list[float, float, float, float]]) -> List[Item]:
+                   time_intervals: List[List[datetime]],
+                   bboxes=List[List[float]]) -> List[Item]:
     res: List[Item] = []
     for item in catalog.get_items():
         if is_item_match_by_time_pos(item, time_intervals, bboxes):
