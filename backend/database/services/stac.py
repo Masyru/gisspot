@@ -18,6 +18,8 @@ def create_item(i_id: str,
         float(metadata["b0_proj_common"]["lonSize"][0]),
         float(metadata["b0_proj_common"]["latSize"][0]),
     ]
+    bbox[2] += bbox[0]  # Конечные координаты = Размер + начальные координаты
+    bbox[3] += bbox[1]
     datetime_item: datetime = datetime(year=metadata["b0_common"]["year"][0], month=1, day=1)
     datetime_item += timedelta(days=int(metadata["b0_common"]["day"][0]),
                                milliseconds=int(metadata["b0_common"]["dayTime"][0]))

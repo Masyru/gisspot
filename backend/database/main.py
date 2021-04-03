@@ -6,6 +6,7 @@ from backend.database.services import path_gen, normalize_stac_path
 
 gis_stac = GisStac(normalize_stac_path(STAC_PATH))
 if __name__ == '__main__':
+    # Печатаем сам stac
     for ch in gis_stac.root_catalog.get_children():
         for it in ch.get_items():
             print(it.to_dict())
