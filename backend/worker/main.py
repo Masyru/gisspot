@@ -1,5 +1,5 @@
-from backend.worker.services import create_worker
-from backend.worker.settings import WORKER_TYPES
+from services import create_worker
+from settings import WORKER_TYPES
 
 if __name__ == '__main__':
     # file_1 = "C:\\Users\\bader\\PycharmProjects\\gisspot\\backend\\database\\data\\pro\\NOAA_15_20210301_213305.f.pro"

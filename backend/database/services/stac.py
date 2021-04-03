@@ -3,7 +3,7 @@ from pystac import Asset, Catalog, Collection, Item
 from typing import Union, Optional, List
 from os import path
 
-from backend.database.services.pro_files import b0_proj_dt
+from pro_files import b0_proj_dt
 
 __all__ = ["add_assets", "create_item", "normalize_stac_path", "filter_catalog", "path_gen"]
 

@@ -1,5 +1,7 @@
 from typing import Optional
 
+import sys
+sys.path.append("../../../")
 from backend.server.services import *
 from backend.server.pd_model import *
 from backend.server.settings import REQUEST_TYPES

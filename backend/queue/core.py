@@ -1,7 +1,7 @@
 from rq import Queue
 from redis import from_url
 
-from backend.queue.settings import REDIS_URL
+from settings import REDIS_URL
 
 __all__ = ["queues"]
 

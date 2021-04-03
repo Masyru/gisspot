@@ -4,7 +4,7 @@ from typing import Optional, List
 from core import queues, tasks
 from requests import post
 
-from .settings import TTL, RESULT_TTL, FAILURE_TTL, SERVER_URL
+from settings import TTL, RESULT_TTL, FAILURE_TTL, SERVER_URL
 
 
 def add_task(args: Optional[tuple],

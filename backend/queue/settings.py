@@ -2,7 +2,7 @@ from pathlib import Path
 
 # DIRS
 BASE_DIR = Path(__file__).resolve().parent.parent
-REDIS_URL = ""
+REDIS_URL = "redis://localhost:6379"
 
 # TIME
 RESULT_TTL = 600

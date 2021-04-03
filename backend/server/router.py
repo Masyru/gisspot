@@ -2,10 +2,10 @@ from fastapi import Request, APIRouter, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 
-from backend.server.core import manager
-from backend.server.settings import TEMPLATES_DIR
-from backend.server.ws import *
-from backend.server.pd_model import *
+from core import manager
+from settings import TEMPLATES_DIR
+from ws import *
+from pd_model import *
 
 router = APIRouter()
 templates = Jinja2Templates(directory=TEMPLATES_DIR)

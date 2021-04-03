@@ -1,8 +1,10 @@
 from datetime import datetime
 from typing import Optional, List, Dict
 
-from backend.server.pd_model import *
+from pd_model import *
 
+import sys
+sys.path.append("../../")
 from backend.queue.services import add_task, stop_all_ws_task
 from backend.database.main import gis_stac
 

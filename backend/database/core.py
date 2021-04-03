@@ -4,7 +4,7 @@ from services import parse
 from datetime import datetime
 from typing import List, Optional
 
-from backend.database.services import stac, normalize_stac_path, filter_catalog
+from services import stac, normalize_stac_path, filter_catalog
 
 
 class GisStac:

@@ -1,5 +1,6 @@
 from fastapi import FastAPI
-from backend.server.ws import ConnectionManager
+
+from ws import ConnectionManager
 
 app = FastAPI()
 manager = ConnectionManager()

@@ -2,9 +2,11 @@ from typing import Optional, Tuple, List
 from rq import Worker, Queue, Connection
 from requests import post
 
-from backend.worker.core import conn
-from backend.worker.settings import WORKER_TYPES, QUEUE_URL
+from core import conn
+from settings import WORKER_TYPES, QUEUE_URL
 
+import sys
+sys.path.append("../../")
 from backend.queue.services import add_task
 from ml.gisalgo import inference, numpy2torch, parse, ssim
 
@@ -54,14 +56,15 @@ def worker_processing(b0_file_1,
     return res
 
 
-def add_worker(task_type: Optional[str] = "low",
+def add_worker(ws_id: Optional[str], task_type: Optional[str] = "low",
                *params, **kwargs) -> None:
-    add_task(task_type=task_type, args=params, kwargs=kwargs, ws_id="1")
-    post(QUEUE_URL, json={"params": params, "kwargs": kwargs,
-                          "task_type": task_type})
+    add_task(task_type=task_type, ws_id=ws_id, args=params, kwargs=kwargs)
+    # post(QUEUE_URL, json={"params": params, "kwargs": kwargs,
+    #                       "task_type": task_type})
 
 
-def big_worker(url_pro_1: Optional[str],
+def big_worker(ws_id: Optional[str],
+               url_pro_1: Optional[str],
                url_pro_2: Optional[str],
                points: Tuple[Tuple[float]],
                deltatime: int,
@@ -70,6 +73,7 @@ def big_worker(url_pro_1: Optional[str],
     """
     Функция для первого этапа обработки
 
+    :param ws_id: Id ws, который закинул задачу
     :param url_pro_1: Путь до первого .tiff файла
     :param url_pro_2: Путь до второго .tiff файла
     :param points: Tuple точек в гео координатах, (lat, lon)
@@ -84,4 +88,4 @@ def big_worker(url_pro_1: Optional[str],
     data_file_1, data_file_2 = numpy2torch(data_file_1, data_file_2)
     for point in points:
         # print(worker_processing(b0_file_1, data_file_1,data_file_2, deltatime, point, window_size, vicinity_size))
-        add_worker(b0_file_1, data_file_1, data_file_2, deltatime, point, window_size, vicinity_size)
+        add_worker(ws_id, b0_file_1, data_file_1, data_file_2, deltatime, point, window_size, vicinity_size)
