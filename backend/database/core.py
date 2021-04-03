@@ -1,10 +1,11 @@
 from pystac import Asset, Catalog, Collection, CatalogType, read_file, \
     Extent, SpatialExtent, TemporalExtent, Item
-from services import parse
 from datetime import datetime
 from typing import List, Optional
 
-from services import stac, normalize_stac_path, filter_catalog
+import sys
+sys.path.append("../../")
+from backend.database.services import parse, stac, normalize_stac_path, filter_catalog
 
 
 class GisStac:

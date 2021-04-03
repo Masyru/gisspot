@@ -3,7 +3,9 @@ from pystac import Asset, Catalog, Collection, Item
 from typing import Union, Optional, List
 from os import path
 
-from pro_files import b0_proj_dt
+import sys
+sys.path.append("../../../")
+from backend.database.services.pro_files import b0_proj_dt
 
 __all__ = ["add_assets", "create_item", "normalize_stac_path", "filter_catalog", "path_gen"]
 

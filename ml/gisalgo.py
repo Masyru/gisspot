@@ -2,7 +2,9 @@ import numpy as np
 import torch
 from math import sin, cos, sqrt, atan2, radians
 from typing import List, Tuple, Callable
-import projmapper as pm
+import sys
+sys.path.append("../")
+import ml.projmapper as pm
 
 b0_common_dt = np.dtype([
     ("formatType", np.uint8),

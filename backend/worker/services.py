@@ -1,12 +1,13 @@
 from typing import Optional, Tuple, List
 from rq import Worker, Queue, Connection
+from os import path
 from requests import post
-
-from core import conn
-from settings import WORKER_TYPES, QUEUE_URL
 
 import sys
 sys.path.append("../../")
+from backend.worker.core import conn
+from backend.worker.settings import WORKER_TYPES, QUEUE_URL
+
 from backend.queue.services import add_task
 from ml.gisalgo import inference, numpy2torch, parse, ssim
 

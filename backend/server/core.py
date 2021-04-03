@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 
-from ws import ConnectionManager
+import sys
+sys.path.append("../../")
+from backend.server.ws import ConnectionManager
 
 app = FastAPI()
 manager = ConnectionManager()

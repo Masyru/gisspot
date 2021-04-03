@@ -1,10 +1,12 @@
 from rq.command import send_stop_job_command
 from rq.job import Job
 from typing import Optional, List
-from core import queues, tasks
 from requests import post
 
-from settings import TTL, RESULT_TTL, FAILURE_TTL, SERVER_URL
+import sys
+sys.path.append("../../")
+from backend.queue.core import queues, tasks
+from backend.queue.settings import TTL, RESULT_TTL, FAILURE_TTL, SERVER_URL
 
 
 def add_task(args: Optional[tuple],
