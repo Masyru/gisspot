@@ -1,13 +1,15 @@
 from typing import Optional, Tuple, List
-from rq import Worker, Queue, Connection
+from rq import Worker, Queue, Connection, get_current_job
+from os import path
 from requests import post
-
-from core import conn
-from settings import WORKER_TYPES, QUEUE_URL
+from json import dumps
 
 import sys
 sys.path.append("../../")
-from backend.queue.services import add_task
+from backend.worker.core import conn
+from backend.worker.settings import WORKER_TYPES, QUEUE_URL, SERVER_URL
+
+from backend.queue.services import add_task, get_vector_json
 from ml.gisalgo import inference, numpy2torch, parse, ssim
 
 
@@ -40,7 +42,8 @@ def worker_processing(b0_file_1,
             res = {"points": [[0, 0], [0, 0]],
                    "velocity": 0,
                    "error": "Что-то про маску"}
-    except AttributeError as e:
+    except AssertionError as e:
+        e = e.args[0]
         if e == "0":
             res = {"points": [[0, 0], [0, 0]],
                    "velocity": 0,
@@ -56,11 +59,17 @@ def worker_processing(b0_file_1,
     return res
 
 
-def add_worker(ws_id: Optional[str], task_type: Optional[str] = "low",
+def add_worker(ws_id: Optional[str], task_type: Optional[str],
                *params, **kwargs) -> None:
     add_task(task_type=task_type, ws_id=ws_id, args=params, kwargs=kwargs)
     # post(QUEUE_URL, json={"params": params, "kwargs": kwargs,
     #                       "task_type": task_type})
+
+
+def normalize(file_path) -> str:
+    disk, main_path = file_path.split(":")
+    disk = disk.lower()
+    return "/mnt/" + disk + main_path.replace("\\", "/")
 
 
 def big_worker(ws_id: Optional[str],
@@ -81,11 +90,17 @@ def big_worker(ws_id: Optional[str],
     :param window_size: Что-то про размер окна
     :parma vicinity_size: Какой-то ещё рзмер
     """
-    file_1 = get_file(url_pro_1)
-    file_2 = get_file(url_pro_2)
+    file_1 = get_file(normalize(url_pro_1))
+    file_2 = get_file(normalize(url_pro_2))
     b0_file_1, data_file_1 = parse(file_1)
     b0_file_2, data_file_2 = parse(file_2)
     data_file_1, data_file_2 = numpy2torch(data_file_1, data_file_2)
     for point in points:
         # print(worker_processing(b0_file_1, data_file_1,data_file_2, deltatime, point, window_size, vicinity_size))
-        add_worker(ws_id, b0_file_1, data_file_1, data_file_2, deltatime, point, window_size, vicinity_size)
+        add_worker(ws_id, "default", b0_file_1, data_file_1, data_file_2, deltatime, point, window_size, vicinity_size)
+
+
+def send_result():
+    job = get_current_job(conn)
+    result = get_vector_json(job.dependency_ids[0].decode("utf-8").split(":")[-1])
+    post(SERVER_URL, data=dumps(result))

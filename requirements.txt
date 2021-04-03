@@ -1,5 +1,10 @@
 aiofiles==0.6.0
 fastapi==0.63.0
 Jinja2==2.11.3
+pydantic==1.8.1
 pystac==0.5.5
+uvicorn[standard]
+requests==2.25.1
+rq==1.8.0
+urllib3==1.26.4
 uvicorn[standard]
