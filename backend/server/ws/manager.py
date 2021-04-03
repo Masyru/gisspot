@@ -1,22 +1,35 @@
 from fastapi import WebSocket
-from typing import List, Optional
+from typing import Dict, Optional, Union
+from uuid import uuid4
 
 
 class ConnectionManager:
     def __init__(self):
-        self.active_connections: List[WebSocket] = []
+        self.active_connections: Dict[str, WebSocket] = {}
 
-    async def connect(self, websocket: Optional[WebSocket]):
+    async def connect(self, websocket: Optional[WebSocket]) \
+            -> Optional[str]:
         await websocket.accept()
-        self.active_connections.append(websocket)
+        ws_id = str(uuid4())
+        self.active_connections[ws_id] = websocket
+        return ws_id
 
-    def disconnect(self, websocket: Optional[WebSocket]):
-        self.active_connections.remove(websocket)
+    def disconnect(self, websocket: Union[WebSocket, str]):
+        if type(websocket) is str:
+            del self.active_connections[websocket]
+            return
 
-    @staticmethod
-    async def send_data(response_dict: Optional[dict],
-                        websocket: Optional[WebSocket]):
+        for key, item in self.active_connections.items():
+            if item == websocket:
+                del self.active_connections[key]
+                return
+
+    async def send_data(self, websocket: Union[str, WebSocket],
+                        response_dict: Optional[dict]):
+        if type(websocket) is str:
+            websocket = self.active_connections[websocket]
+
         await websocket.send_json(response_dict)
 
-    async def get_ws(self, ws_id: int):
-        return self.active_connections[ws_id]  # TODO: Изменить получение по id
+    async def get_ws(self, ws_id: Optional[str]):
+        return self.active_connections[ws_id]

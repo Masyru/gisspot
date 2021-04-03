@@ -1,12 +1,38 @@
 from pydantic import BaseModel
 
-__all__ = ["ProcessingData"]
+__all__ = ["StandardModel", "PreviewRequest", "PreviewData", "VectorsRequest", "VectorResult"]
 
 
-class ProcessingData(BaseModel):
-    x1: float
-    y1: float
-    x2: float
-    y2: float
-    speed: float
-    error_message: str
+class StandardModel(BaseModel):
+    type: str
+    data: dict
+
+
+class Point(BaseModel):
+    lon: float
+    lat: float
+
+
+class PreviewRequest(BaseModel):
+    datetime: int
+    bbox: list[Point, Point]
+
+
+class PreviewData(BaseModel):
+    img: str
+    datetime: int
+    bbox: list[Point, Point]
+
+
+class VectorsRequest(BaseModel):
+    ids: list[str, str]
+    points: list[Point]
+    window_size: int
+    vicinity_size: int
+
+
+class VectorResult(BaseModel):
+    ws_id: str
+    vector = list[list[float], list[float]]
+    velocity: float
+    error: str
