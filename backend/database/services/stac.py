@@ -3,7 +3,7 @@ from pystac import Asset, Catalog, Collection, Item
 from typing import Union, Optional, List
 from os import path
 
-from backend.database.services.pro_files import b0_proj_dt
+from pro_files import b0_proj_dt
 
 __all__ = ["add_assets", "create_item", "normalize_stac_path", "filter_catalog", "path_gen"]
 
@@ -18,6 +18,8 @@ def create_item(i_id: str,
         float(metadata["b0_proj_common"]["lonSize"][0]),
         float(metadata["b0_proj_common"]["latSize"][0]),
     ]
+    bbox[2] += bbox[0]  # Конечные координаты = Размер + начальные координаты
+    bbox[3] += bbox[1]
     datetime_item: datetime = datetime(year=metadata["b0_common"]["year"][0], month=1, day=1)
     datetime_item += timedelta(days=int(metadata["b0_common"]["day"][0]),
                                milliseconds=int(metadata["b0_common"]["dayTime"][0]))
@@ -96,5 +98,10 @@ def path_gen(pro_path: Optional[str],
     if file_extension is None:
         file_extension = dir_name
     if filename is None:
-        filename = pro_path.split("/")[-1].rstrip(".pro")
-    return path.join(pro_path[:-2], dir_name, filename + "." + file_extension)
+        data_dir, filename = path.split(pro_path)
+    else:
+        data_dir, _ = path.split(pro_path)
+
+    data_dir = path.join(data_dir, "..", "..")
+    filename = filename.rstrip(".pro")
+    return path.normpath(path.join(data_dir, dir_name, filename + "." + file_extension))

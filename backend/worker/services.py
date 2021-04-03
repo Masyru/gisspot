@@ -1,11 +1,17 @@
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List
 from rq import Worker, Queue, Connection
+from requests import post
 
-from backend.worker.core import conn
-from backend.worker.settings import WORKER_TYPES
+from core import conn
+from settings import WORKER_TYPES, QUEUE_URL
+
+import sys
+sys.path.append("../../")
+from backend.queue.services import add_task
+from ml.gisalgo import inference, numpy2torch, parse, ssim
 
 
-def create_worker(queues):
+def create_worker(queues: List[str]):
     assert all(map(lambda key: key in WORKER_TYPES, queues))
 
     with Connection(conn):
@@ -13,31 +19,73 @@ def create_worker(queues):
         worker.work(with_scheduler=True)
 
 
-def get_file(url_pro: Optional[str]) -> bytes:
-    pass
+def get_file(url_pro: Optional[str]):
+    return open(url_pro, "rb")  # TODO: Поддержка web запросов
 
 
-def worker_processing(url_pro_1: Optional[str],
-                      url_pro_2: Optional[str],
-                      point: Tuple[float, float],
-                      ws_id: Optional[int],
-                      window_size: Tuple[float, float],
-                      vicinity_size: Tuple[float, float]) -> dict:
+def worker_processing(b0_file_1,
+                      data_file_1,
+                      data_file_2,
+                      deltatime: int,
+                      point: Tuple[float],
+                      window_size: Tuple[int],
+                      vicinity_size: Tuple[int]) -> dict:
+    try:
+        (lat, lon), velocity, mask = inference(data_file_1, data_file_2, b0_file_1, deltatime, point, window_size, vicinity_size, ssim, "cpu", sf=0.5, tpe="geo")
+        if mask:
+            res = {"points": [[point[1], point[0]], [lon, lat]],
+                   "velocity": velocity,
+                   "error": None}
+        else:
+            res = {"points": [[0, 0], [0, 0]],
+                   "velocity": 0,
+                   "error": "Что-то про маску"}
+    except AttributeError as e:
+        if e == "0":
+            res = {"points": [[0, 0], [0, 0]],
+                   "velocity": 0,
+                   "error": "Точка вышла заграницы"}
+        elif e == "1":
+            res = {"points": [[0, 0], [0, 0]],
+                   "velocity": 0,
+                   "error": "Слишком много шума"}
+        else:
+            res = {"points": [[0, 0], [0, 0]],
+                   "velocity": 0,
+                   "error": "Аааааа"}
+    return res
+
+
+def add_worker(ws_id: Optional[str], task_type: Optional[str] = "low",
+               *params, **kwargs) -> None:
+    add_task(task_type=task_type, ws_id=ws_id, args=params, kwargs=kwargs)
+    # post(QUEUE_URL, json={"params": params, "kwargs": kwargs,
+    #                       "task_type": task_type})
+
+
+def big_worker(ws_id: Optional[str],
+               url_pro_1: Optional[str],
+               url_pro_2: Optional[str],
+               points: Tuple[Tuple[float]],
+               deltatime: int,
+               window_size: Tuple[int],
+               vicinity_size: Tuple[int]) -> None:
+    """
+    Функция для первого этапа обработки
+
+    :param ws_id: Id ws, который закинул задачу
+    :param url_pro_1: Путь до первого .tiff файла
+    :param url_pro_2: Путь до второго .tiff файла
+    :param points: Tuple точек в гео координатах, (lat, lon)
+    :param deltatime: Разница в сек. между снимками
+    :param window_size: Что-то про размер окна
+    :parma vicinity_size: Какой-то ещё рзмер
+    """
     file_1 = get_file(url_pro_1)
     file_2 = get_file(url_pro_2)
     b0_file_1, data_file_1 = parse(file_1)
     b0_file_2, data_file_2 = parse(file_2)
-
-    file_1, file_2 = numpy2torch(data_file_1, data_file_2)
-    try:
-        pos, score, _, _ = find_best_match(file_1, file_2, (point[1], point[0]), window_size, vicinity_size)
-        speed = calculate_distance(b0_file_1, point, pos)
-        return {"x1": point[1], "y1": point[0],
-                "x2": pos[1], "y2": pos[0],
-                "speed": speed,
-                "error_message": None}
-    except AttributeError as e:
-        return {"x1": 0, "y1": 0,
-                "x2": 0, "y2": 0,
-                "speed": 0,
-                "error_message": e}
+    data_file_1, data_file_2 = numpy2torch(data_file_1, data_file_2)
+    for point in points:
+        # print(worker_processing(b0_file_1, data_file_1,data_file_2, deltatime, point, window_size, vicinity_size))
+        add_worker(ws_id, b0_file_1, data_file_1, data_file_2, deltatime, point, window_size, vicinity_size)
