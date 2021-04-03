@@ -1,4 +1,4 @@
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List
 from rq import Worker, Queue, Connection
 from requests import post
 
@@ -8,7 +8,7 @@ from backend.worker.settings import WORKER_TYPES, QUEUE_URL
 from ml.gisalgo import inference, numpy2torch, parse, ssim
 
 
-def create_worker(queues):
+def create_worker(queues: List[str]):
     assert all(map(lambda key: key in WORKER_TYPES, queues))
 
     with Connection(conn):

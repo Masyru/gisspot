@@ -9,7 +9,7 @@ if __name__ == '__main__':
     for ch in gis_stac.root_catalog.get_children():
         for it in ch.get_items():
             print(it.to_dict())
-#
+#     Для первой генерация по папке data
 #     gis_stac = GisStac(new_path=STAC_PATH)
 #     pro_dir = os.path.join(FILES_PATH, "pro")
 #     for filename in os.listdir(pro_dir):

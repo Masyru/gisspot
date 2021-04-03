@@ -1,3 +1,3 @@
 REDIS_URL = ""
-WORKER_TYPES = ["default"]
+WORKER_TYPES = ["default", "high"]
 QUEUE_URL = ""
